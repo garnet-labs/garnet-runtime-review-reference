@@ -31,6 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # UAT aid: its post step (runs AFTER the garnet post step) dumps the
+      # accumulated Step Summary markdown to the log for text verification.
+      - name: Summary dump hook
+        uses: ./.github/actions/dump-summary
+
       # Start Jibril first — everything after this line is recorded.
       # jibril_version deliberately EMPTY: the pin must come from ref resolution.
       - name: Start Garnet runtime sensor
