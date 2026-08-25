@@ -5,20 +5,26 @@ merge gate that reads what a change *actually did* when it ran, not just what
 its diff looks like. If you are an AI coding agent or an AI reviewer operating
 in this repo, read this first.
 
-## If you are REVIEWING a pull request
+## Code Review Rules (if you are reviewing a pull request)
 
-Follow [`REVIEW.md`](REVIEW.md) before finalizing any review. In short:
+Follow the consumption contract in [`docs/SPINE.md`](docs/SPINE.md)
+(**Record → Mirror → Verdict → Utterance**) via its adapter
+[`REVIEW.md`](REVIEW.md) before finalizing any review. In short:
 
-1. Find the **Garnet Runtime Review** comment (marker
-   `<!-- garnet-runtime-review -->`) and, on testbed PRs, the **coverage-gap**
-   comment (marker `<!-- npm-testbed-coverage-gap -->`). They are the kernel-
-   recorded ground truth of what this PR's CI executed — every process lineage
-   and every outbound destination.
-2. Cross-check the diff against that record. Your review must explicitly cite
-   the runtime evidence: name any recorded destination or process the diff does
-   not explain, or state that all recorded behaviour is explained by the change.
-3. If the runtime comment is absent, say "no runtime evidence" — that is not the
-   same as a clean run.
+1. Read the **Runtime evidence (Garnet)** section of the PR description
+   (between `<!-- garnet:evidence:begin -->` and `<!-- garnet:evidence:end -->`).
+   It is a verbatim mirror of the trusted Garnet Runtime Review comment — the
+   kernel-recorded ground truth of what this PR's CI executed: every execution
+   chain and every outbound destination. Use it only when its
+   `<!-- garnet:commit <sha> -->` equals the PR head.
+2. Apply the fail-closed verdict table (`recorded` / `unchanged` / `changed` /
+   `undeterminable`) and speak exactly one utterance, prefixed exactly
+   `Runtime evidence (Garnet, head <sha7>): `. Cross-check the diff against
+   the record: name any recorded destination or execution chain the diff does
+   not explain, or state that recorded behaviour is explained by the change.
+3. A missing, stale, or unparseable record is `undeterminable` — say "no
+   runtime evidence"; that is never the same as a clean run. Evidence never
+   approves; judgment stays with you.
 
 ## If you are WRITING a change
 

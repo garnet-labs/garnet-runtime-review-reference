@@ -1,6 +1,6 @@
 # Runtime-grounded PR review — the demo
 
-[![Living Proof](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/workflows/proof-check.yml/badge.svg)](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/workflows/proof-check.yml)
+[![Living Proof](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml/badge.svg)](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml)
 
 **A real merge gate, plus Garnet runtime evidence. Same diff — opposite verdict.**
 
@@ -21,14 +21,14 @@ through the clean one and stop the poisoned one — and tell you exactly why.
 The first two demo PRs are the **same shape**: add one dependency (`ms@2.1.3`)
 with a matching lockfile — the change stamphog hard-denies as `deps_toolchain`
 ("never auto-approve"). The only variable is what Garnet recorded at install
-time. A third PR ([#6](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/6))
+time. A third PR ([#6](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/6))
 raises the bar to the realistic case: egress hidden in a *transitive*
 dependency, invisible in the diff.
 
 | Demo PR | What the install actually did (Garnet) | Gate **without** Garnet | Gate **with** Garnet |
 |---|---|---|---|
-| **Clean** — [PR #1](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/1) | hit `registry.npmjs.org` only | ❌ **DENY** → every dep PR dumped on a human | ✅ **APPROVE** — "install egress stayed within the registry baseline; no off-baseline destinations" ([run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376231711)) |
-| **Poisoned** — [PR #2](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/2) | postinstall hook ran `curl https://httpbin.org/get` | ❌ **DENY** — but blind to *why* | 🛑 **REFUSE** — "OFF-BASELINE egress to **httpbin.org**, not explained by the `ms@2.1.3` addition — supply-chain risk" ([run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376233945)) |
+| **Clean** — [PR #1](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/1) | hit `registry.npmjs.org` only | ❌ **DENY** → every dep PR dumped on a human | ✅ **APPROVE** — "install egress stayed within the registry baseline; no off-baseline destinations" ([run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376231711)) |
+| **Poisoned** — [PR #2](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/2) | postinstall hook ran `curl https://httpbin.org/get` | ❌ **DENY** — but blind to *why* | 🛑 **REFUSE** — "OFF-BASELINE egress to **httpbin.org**, not explained by the `ms@2.1.3` addition — supply-chain risk" ([run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376233945)) |
 
 Without Garnet the gate can't tell those two PRs apart. With Garnet, the clean
 bump merges itself and the poisoned one is stopped with the destination named —
@@ -37,7 +37,7 @@ even though its diff looks like a trivial one-liner.
 ### The realistic case: egress hidden in a transitive dependency
 
 The poisoned PR above puts its hook where you could theoretically spot it. The
-harder, more honest case is [**PR #6**](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/6):
+harder, more honest case is [**PR #6**](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/6):
 its diff adds **one** top-level dependency (`chart-helpers`) for axis-label
 formatting — 45 lines, a manifest and a lockfile, nothing suspicious. The egress
 lives **two levels down** the dependency tree (`chart-helpers → date-fmt →
@@ -45,7 +45,7 @@ metrics-beacon`), in a bundled `postinstall` that never appears in the diff. A
 diff-only or static reviewer has nothing to flag.
 
 Garnet records the install anyway and the signal flows through stamphog's own
-gates. The Gates block on PR #6 reads ([run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376239347)):
+gates. The Gates block on PR #6 reads ([run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376239347)):
 
 ```text
   ✗ deny-list: matches: deps_toolchain [Garnet: off-baseline egress → api.ipify.org, httpbin.org, ip-api.com]
@@ -78,7 +78,7 @@ route them to a human. That is correct, and it is also exhausting — every clea
 bump pays the same tax as a real threat.
 
 Garnet closes the gap by recording the install with a kernel-level (eBPF) sensor
-and posting the process lineage + egress as a **public PR comment**. The gate
+and posting the execution chains + egress as a **public PR comment**. The gate
 consumes that record deterministically.
 
 ---
@@ -105,11 +105,41 @@ internals — any consumer of PR comments could do the same.
 
 ---
 
+## Reviewer consumption — the spine
+
+The StampHog gate is one consumer. This repository also wires the same record
+into the reviewers most teams already run, through one shared contract —
+[`docs/SPINE.md`](docs/SPINE.md): **Record → Mirror → Verdict → Utterance**.
+One record (the head-bound Garnet comment), one delivery point (mirrored
+verbatim into the PR description by
+[`garnet-evidence-mirror.mjs`](.github/scripts/garnet-evidence-mirror.mjs)),
+one fail-closed verdict table, and one bounded utterance per verdict — so
+grounded reviewers add one quiet line on clean PRs and get loud only on a real
+runtime delta.
+
+Each consumer is a thin adapter of the spine, in the config file that reviewer
+already reads:
+
+| Consumer | Adapter in this repo |
+|---|---|
+| GitHub Copilot code review | [`.github/skills/garnet-runtime-review/SKILL.md`](.github/skills/garnet-runtime-review/SKILL.md) |
+| CodeRabbit | [`.coderabbit.yaml`](.coderabbit.yaml) |
+| Qodo (pr-agent) | [`.pr_agent.toml`](.pr_agent.toml) |
+| Greptile | [`greptile.json`](greptile.json) |
+| Coding agents (Codex, Claude, Devin, …) | [`AGENTS.md`](AGENTS.md) → [`REVIEW.md`](REVIEW.md) |
+| Deterministic merge gate (StampHog) | [`tools/pr-approval-agent/garnet_runtime.py`](tools/pr-approval-agent/garnet_runtime.py) |
+
+Adapters quote the spine; they never restate it. Installing the pattern in
+another repository is one CI step, one mirror job, and whichever adapter
+fragments match the reviewers that repository runs.
+
+---
+
 ## The safety rails (all proven, not asserted)
 
 - **Scoped bypass.** Garnet only lifts the deny on dependency-shaped files. Auth,
   billing, and migration files can never ride along — see the scoped demo PR
-  ([#3](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/3)), where
+  ([#3](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/3)), where
   a clean record lifts the deps deny but the `auth` deny still stands.
 - **Head-pinned.** Assurance is bound to the exact commit SHA. A record on an
   older commit confers nothing.
@@ -126,7 +156,7 @@ internals — any consumer of PR comments could do the same.
    (the recorded truth) and the gate's verdict comment.
 2. **Click the run links** to see the gate's reasoning in the CI log.
 3. **Reproduce it yourself** in a few minutes — [`VERIFY.md`](VERIFY.md).
-4. **Watch it stay true** — the [Living Proof](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/workflows/proof-check.yml)
+4. **Watch it stay true** — the [Living Proof](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml)
    workflow re-asserts the whole A/B on every push and weekly. Green badge = the
    proof still holds.
 

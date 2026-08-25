@@ -5,9 +5,13 @@
 #                 smoke test, export the execution record. The installed
 #                 Garnet integration posts the Garnet Runtime Review comment
 #                 for this PR head — the factual runtime record.
-#   2. coverage-gap — contrast the reviewable diff with the recorded
-#                 execution surface (packages installed, processes, egress)
-#                 and upsert one sticky PR comment + Step Summary.
+#   2. mirror   — mirror the head-bound Garnet Runtime Review comment bytes
+#                 verbatim into the PR description between
+#                 <!-- garnet:evidence:begin/end --> (docs/SPINE.md, Stage 2),
+#                 so description-only reviewers ground in the same record.
+#   3. coverage-gap — contrast the reviewable diff with the recorded
+#                 execution surface (Step Summary only; the PR surface
+#                 carries exactly one record — the spine's one-record rule).
 #
 # Triggers: pull_request for ordinary pushes, plus workflow_dispatch with
 # pr_number because PRs opened by npm-testbed-open-pr.yml (GITHUB_TOKEN) do
@@ -97,6 +101,44 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  mirror:
+    name: "Mirror: evidence into PR description"
+    runs-on: ubuntu-latest
+    needs: record
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Mirror head-bound Garnet record into the PR description
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)
+          export HEAD_SHA
+          for attempt in 1 2 3 4 5 6; do
+            out=$(node .github/scripts/garnet-evidence-mirror.mjs)
+            echo "$out"
+            case "$out" in
+              *"Mirrored head-bound record"*) exit 0 ;;
+            esac
+            if [ "$attempt" -lt 6 ]; then sleep 20; fi
+          done
+          echo "No head-bound record after retries; the description section states evidence is pending."
+
   coverage-gap:
     name: Static review vs execution surface
     runs-on: ubuntu-latest
@@ -119,7 +161,7 @@ jobs:
           name: npm-testbed-record-${{ github.run_id }}
           path: ${{ runner.temp }}/record
 
-      - name: Render and upsert the coverage-gap comment
+      - name: Render the coverage-gap Step Summary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
@@ -138,16 +180,5 @@ jobs:
           node npm-testbed/scripts/coverage-gap.mjs > "$RUNNER_TEMP/coverage-gap.md"
 
           cat "$RUNNER_TEMP/coverage-gap.md" >> "$GITHUB_STEP_SUMMARY"
-
-          marker="<!-- npm-testbed-coverage-gap -->"
-          existing=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
-            --jq "[.[] | select(.body | contains(\"${marker}\")) | .id] | first // empty")
-          if [ -n "$existing" ]; then
-            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
-              -X PATCH -F body=@"$RUNNER_TEMP/coverage-gap.md" >/dev/null
-            echo "Updated coverage-gap comment ${existing}"
-          else
-            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-              -X POST -F body=@"$RUNNER_TEMP/coverage-gap.md" >/dev/null
-            echo "Posted coverage-gap comment"
-          fi
+          echo "Coverage-gap analysis written to the Step Summary. The PR surface"
+          echo "carries exactly one record — the mirrored Garnet evidence (docs/SPINE.md)."

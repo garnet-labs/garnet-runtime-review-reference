@@ -17,7 +17,7 @@ reviewed with **runtime evidence**, not just the diff.
    and the [smoke test](app/smoke/run.mjs) (first import + one exercised
    export), and exports the execution record as an artifact. The installed
    Garnet integration posts the **Garnet Runtime Review** comment — the
-   factual record of every recorded process lineage and outbound destination.
+   factual record of every recorded execution chain and outbound destination.
 3. **The coverage gap is quantified** — the same CI renders
    [`scripts/coverage-gap.mjs`](scripts/coverage-gap.mjs): a sticky PR
    comment + Step Summary contrasting the reviewable diff (a few lines in
@@ -40,7 +40,7 @@ reviewed with **runtime evidence**, not just the diff.
    contacts several domains, none of which are visible in the diff.
 2. **Grounded AI review** — reviewers citing the Garnet Runtime Review
    comment can factually verify (or flag) runtime behavior — install
-   scripts, unexpected egress, unexpected process lineage — that no static
+   scripts, unexpected egress, unexpected execution chains — that no static
    diff review could see.
 
 ## Configuration

@@ -1,55 +1,62 @@
-# Reviewer grounding — Garnet runtime evidence
+# Reviewer grounding: Garnet Runtime Review
 
-Instructions for AI code reviewers (Devin Review, GitHub Copilot, CodeRabbit,
-Greptile, Claude, Cursor, …) reviewing pull requests in this repository —
-especially the **npm top-10 testbed** PRs (`deps(testbed): add <pkg> …`,
-head branches `npm-testbed/dep-*`).
+This file is an adapter of the repository's consumption contract,
+[`docs/SPINE.md`](docs/SPINE.md) — **Record → Mirror → Verdict → Utterance**.
+It applies to every reviewer of pull requests in this repository (Copilot code
+review, CodeRabbit, Greptile, Qodo, Claude, Devin, Cursor, humans), especially
+the **npm testbed** PRs (`deps(testbed): add <pkg> …`, head branches
+`npm-testbed/dep-*`), each of which adds a single dependency to
+`npm-testbed/app/package.json` and installs it in CI under the Garnet sensor.
 
-## The runtime evidence on every testbed PR
+The PR description contains a `Runtime evidence (Garnet)` section between
+`<!-- garnet:evidence:begin -->` and `<!-- garnet:evidence:end -->`. When it
+contains a head-bound record, the section is a verbatim mirror of the trusted
+Garnet Runtime Review comment. Treat that record as ground truth of what the
+recorded run observed, then cross-check it against what the diff implies.
 
-Each testbed PR adds a single dependency to `npm-testbed/app/package.json` —
-a diff of a few lines. Its CI installs and first-imports that package on a
-runner instrumented with the Garnet sensor (Jibril, eBPF), and two factual
-comments land on the PR:
+## Grounding rules
 
-1. **Garnet Runtime Review** (HTML marker `<!-- garnet-runtime-review -->`)
-   — a deterministic, observation-only record of what the PR's CI actually
-   did: every recorded process (with full lineage) and every recorded
-   outbound destination, per job. It states facts only — no verdicts,
-   statuses, or severity. **You, the reviewer, supply the judgment.**
-2. **Static review surface vs execution surface** (marker
-   `<!-- npm-testbed-coverage-gap -->`) — quantifies the gap between the
-   lines a diff reviewer sees and the execution surface the run touched:
-   transitive packages installed, processes recorded, outbound domains
-   contacted, and how many of those domains appear anywhere in the diff.
+1. Read the `<!-- garnet:commit <sha> -->` marker. Use the mirrored record only
+   when that SHA equals the PR head. A different SHA, a missing section, or a
+   pending section is **no runtime evidence, not a clean run** — the verdict is
+   `undeterminable` (see the fail-closed table in `docs/SPINE.md`).
+2. Use the `<!-- garnet:summary {...} -->` marker as the machine register. It
+   is contract-versioned and keeps chain counts that do not render on the
+   human surface. On snapshot comments, `previous` is `null`; branch on that
+   field instead of treating the job partition as a comparison.
+3. An execution chain is one root-to-action path. Today's action class is an
+   outbound connection. A destination is the leaf of an outbound action and
+   never the definition of a chain. Do not use "process chain" or "process
+   lineage".
+4. The headline is `Execution Profiles recorded for <N> job(s)`. Never claim
+   true k-of-n coverage. Runtime Review records observed execution; it does not
+   establish that a fixed fraction of jobs ran.
+5. In a comparison, `+` is new in the current record and `−` is only in the
+   previous record. Cross-check those observations against the diff — on a
+   one-line dependency bump, expect registry traffic (`registry.npmjs.org`
+   and friends) and flag any recorded destination or execution chain the
+   dependency change does not explain: install-script activity, unexpected
+   hosts, unexpected interpreters. Do not treat a missing record as absence
+   of behavior.
+6. Never repeat verdicts, scores, severities, baseline classifications, or
+   safety judgments from Garnet. Derive review judgment from the diff.
+7. Speak the utterance for your verdict — exactly one of the four shapes in
+   `docs/SPINE.md`, prefixed exactly with
+   `Runtime evidence (Garnet, head <sha7>): `. On `recorded` and `unchanged`,
+   one line and no further runtime commentary. On `changed`, quote the delta
+   one-liners verbatim, link the Execution Profile, and ask whether the delta
+   is expected given the diff.
 
-## What you must do with it
+The mirror is delivery, not a summary. Do not paraphrase or dilute the
+verbatim evidence region. The Garnet evidence is runtime-only: code quality,
+style, logic correctness, and test coverage remain fully your job.
 
-1. **Locate both comments on the PR** before finalizing your review. They
-   are refreshed for the current PR head, so they describe the newest
-   commit's run.
-2. **Cross-check the diff against the recorded behavior.** Treat the
-   recorded egress and process lineage as ground truth of the run:
-   - A one-line dependency bump implies registry traffic
-     (`registry.npmjs.org` and friends) and an install/import process chain.
-     Flag any recorded destination or spawned process the dependency change
-     does **not** explain — install-script activity, unexpected hosts,
-     unexpected interpreters in the lineage.
-   - State the coverage gap explicitly in your review: how much of the
-     recorded execution surface (packages, processes, destinations) is
-     visible in the diff you reviewed, and what you could not have seen from
-     the diff alone.
-   - A recorded detection is a factual record-backed observation — weigh it
-     in your review rather than ignoring it.
-3. **Re-ground on every update.** When you re-review, use the current
-   comments, not remembered ones.
-4. **Do not restate the comments.** Reference them and add judgment — the
-   facts are already on the PR.
+## Public machine surface
 
-## Scope notes
-
-- The Garnet evidence is runtime-only. Code quality, style, correctness of
-  logic, and test coverage remain fully your job.
-- Absence of the Garnet comment (fork PRs without secrets, sensor token
-  unavailable) means *no runtime evidence*, not a clean run. Say so if the
-  change is runtime-relevant.
+The logged-out machine surface also exists today:
+`https://app.garnet.ai/api/public/runs/<run_id>?profile=<profile_id>` returns
+`200 application/json` with `schema_version: runtime-review-public/v3`. The
+HTML permalink does not content-negotiate (`Accept: application/json` still
+returns HTML), and a `.json` suffix returns 404. Use the marker and linked
+profile deliberately; do not invent an API URL when the comment does not
+provide one.

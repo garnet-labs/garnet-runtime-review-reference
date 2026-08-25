@@ -7,10 +7,10 @@ is staged or hand-edited after the fact.
 
 | # | Demo PR | Runtime reality (Garnet) | Verdict without Garnet | Verdict with Garnet | Evidence |
 |---|---|---|---|---|---|
-| 1 | Clean — [#1](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/1) | `registry.npmjs.org` only | DENY (deps_toolchain, T2-never) | **APPROVE** | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376231711) |
-| 2 | Poisoned — [#2](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/2) | postinstall → `curl httpbin.org` | DENY (blind to why) | **REFUSE**, cites `httpbin.org` | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376233945) |
-| 3 | Scoped — [#3](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/3) | clean dep install + an `auth` file | DENY (deps + auth) | **still blocked** — deps deny lifted, `auth` deny stands | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376236749) |
-| 6 | Transitive — [#6](https://github.com/garnet-labs/garnet-runtime-review-demo/pull/6) | 2-deep transitive postinstall → `api.ipify.org`, `ip-api.com`, `httpbin.org` (**not in diff**) | DENY (and a diff-only reviewer sees nothing to flag) | **WITHHELD** — deny stands, all 3 transitive hosts named | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30376239347) · [record run](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/runs/30305397518) |
+| 1 | Clean — [#1](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/1) | `registry.npmjs.org` only | DENY (deps_toolchain, T2-never) | **APPROVE** | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376231711) |
+| 2 | Poisoned — [#2](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/2) | postinstall → `curl httpbin.org` | DENY (blind to why) | **REFUSE**, cites `httpbin.org` | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376233945) |
+| 3 | Scoped — [#3](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/3) | clean dep install + an `auth` file | DENY (deps + auth) | **still blocked** — deps deny lifted, `auth` deny stands | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376236749) |
+| 6 | Transitive — [#6](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/6) | 2-deep transitive postinstall → `api.ipify.org`, `ip-api.com`, `httpbin.org` (**not in diff**) | DENY (and a diff-only reviewer sees nothing to flag) | **WITHHELD** — deny stands, all 3 transitive hosts named | [verdict run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376239347) · [record run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30305397518) |
 
 ## What each run demonstrates
 
@@ -67,7 +67,7 @@ The [`proof-check.yml`](.github/workflows/proof-check.yml) workflow re-asserts
 the full decision rule (clean lifts / off-baseline stands + names / stale +
 pending + missing WAIT / legend never parsed / bypass scoped / transitive multi-
 host caught + all named / grounding text says WITHHELD vs APPLIED) on every push
-and weekly — 10 tests. A green [Living Proof badge](https://github.com/garnet-labs/garnet-runtime-review-demo/actions/workflows/proof-check.yml)
+and weekly — 10 tests. A green [Living Proof badge](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml)
 means the A/B still holds on current code.
 
 ## The integration point
