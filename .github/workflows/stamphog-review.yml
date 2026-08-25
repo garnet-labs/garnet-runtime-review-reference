@@ -110,38 +110,23 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Post verdict comment
+      - name: Publish review-status comment
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR="${{ steps.pr.outputs.number }}"
-          # Strip any ANSI color escapes so the posted comment renders cleanly.
-          sed -r 's/\x1b\[[0-9;]*m//g' review-output.txt > review-clean.txt 2>/dev/null || cp review-output.txt review-clean.txt
-          # The engine output already carries the Garnet signal as a native
-          # "runtime (Garnet):" line in its Gates block — no separate footer.
-          {
-            echo "<!-- stamphog-verdict -->"
-            echo "### Stamphog verdict — PR #$PR"
-            echo ""
-            echo '```text'
-            cat review-clean.txt 2>/dev/null || echo "(engine produced no output — see the run log)"
-            echo '```'
-            echo ""
-            echo "_Reviewer executed under Garnet runtime visibility. Full log in the workflow run._"
-          } > verdict-comment.md
-          # Upsert: edit the existing sticky verdict comment instead of adding a
-          # new one on every re-run, so the PR keeps exactly one verdict.
-          EXISTING=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
-            --jq '[.[] | select(.body | contains("<!-- stamphog-verdict -->")) ] | last | .id // empty')
-          if [ -n "$EXISTING" ]; then
-            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" \
-              -F body=@verdict-comment.md >/dev/null
-            echo "updated existing verdict comment $EXISTING"
-          else
-            gh pr comment "$PR" --repo "${{ github.repository }}" --body-file verdict-comment.md
-            echo "posted new verdict comment"
+          # CI-shape stand-in for the server-side publisher: posts the
+          # engine-rendered review_body verbatim (marker
+          # <!-- stamphog:review-status -->, one sticky comment, upserted) —
+          # the same body shape stamphog[bot] publishes in production.
+          if [ ! -f "verdict-${{ steps.pr.outputs.number }}.json" ]; then
+            echo "no verdict JSON — engine exited before writing; see the run log"
+            exit 0
           fi
+          python3 .github/scripts/stamphog-publish.py \
+            "verdict-${{ steps.pr.outputs.number }}.json" \
+            "${{ github.repository }}" \
+            "${{ steps.pr.outputs.number }}"
 
       - name: Upload verdict bundle
         if: always()

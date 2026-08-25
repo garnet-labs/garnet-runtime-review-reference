@@ -154,14 +154,6 @@ def _normalize_discussion_for_prompt(comments_raw: list[dict]) -> list[dict]:
     normalized = []
     for comment in comments_raw:
         user = comment.get("user") or {}
-        login = (user.get("login") or "").lower()
-        # The Garnet runtime-review comment is consumed as a STRUCTURED, trusted
-        # signal (garnet_runtime.py -> classification["garnet_runtime"]), so its
-        # raw prose is excluded here. Its "Reading this review" legend renders an
-        # illustrative example destination that the LLM must never mistake for
-        # recorded egress; keeping it out of the untrusted region prevents that.
-        if "garnet-runtime-review" in login:
-            continue
         if not _prompt_worthy_author(user.get("login"), comment.get("author_association"), user.get("type") == "Bot"):
             continue
         normalized.append(

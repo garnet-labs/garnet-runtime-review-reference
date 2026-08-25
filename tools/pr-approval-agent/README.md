@@ -1,7 +1,57 @@
+<!-- Vendored from garnet-labs/posthog tools/pr-approval-agent @ e72c8c344344 (2026-08-25) — the engine running in the PostHog lanes, unmodified except --repo defaults. -->
 # PR approval agent
 
 AI-assisted PR approval for PostHog.
 Deterministic safety gates first, then Claude reviews for showstoppers.
+
+> [!IMPORTANT]
+> **Vendored copy (garnet-labs/posthog) — intentional local changes.**
+> This fork carries a Garnet Runtime Review integration on top of the
+> upstream engine, following the vendoring convention described below:
+>
+> - `runtime_evidence.py` (+ tests) — parses the Garnet sticky PR comment
+>   (the kernel-recorded execution tree: process lineage chains and the
+>   destinations each chain produced, bound to the head commit), mirroring
+>   `migration_risk.py`'s check-run-bypass shape. Grounding is the tree
+>   itself — there is no static egress allowlist; the deterministic signals
+>   are integrity (trusted author, head-pinned, parseable, non-empty) and
+>   the renderer's comparison against the previously profiled commit.
+> - `review_pr.py` — a matched `unchanged` comparison against the previously
+>   profiled commit may clear a `deps_toolchain`-only deny (to LLM review,
+>   never auto-approve; a first snapshot has no baseline and never clears).
+>   "New" is an observation, "unexpected" is a judgment against the diff: a
+>   genuinely NEW workload destination is advisory — named on the
+>   `runtime evidence` gate row and handed to the reviewer with showstopper
+>   guidance, never a deterministic refusal. Runner-substrate chains
+>   (systemd-rooted provisioning with no Runner.Worker descent) and reshaped
+>   chains (an already-recorded destination under a different lineage) never
+>   count toward divergence — reported, never failing; evidence status/block
+>   land in the classification and bundle.
+> - `gate_profile.py` (+ tests, `gate-profile.md`) — reads the machine
+>   block of the same comment, the `garnet:summary` marker, and applies
+>   contract 7.0's verdict table: complete capture + eligible baseline +
+>   unchanged workload clears the one named `deps_toolchain` deny into full
+>   review, a changed workload escalates with the delta quoted, and every
+>   other reading — degraded capture, ineligible baseline, missing or
+>   unparseable marker, unknown field value, marker head ≠ PR head — is
+>   undeterminable and clears nothing. Both readings must agree before a
+>   deny is cleared. Evidence never approves; there is no "clean".
+> - `reviewer.py` — the full tree renders as a TRUSTED prompt block; the
+>   reviewer judges each chain (lineage → destination) against the diff;
+>   `.stamphog/review-guidance.md` has a "Runtime evidence (Garnet)"
+>   section.
+> - `evidence_body.py` (+ tests) — Python port of the testbed's
+>   `garnet-evidence-mirror` (contract v6.6.1): upserts the head-bound
+>   Garnet comment **verbatim** into the PR description between
+>   `garnet:evidence` markers, so description-only reviewers (Greptile,
+>   per `greptile.json` and root `REVIEW.md`) ground in the same bytes.
+> - `.stamphog/runtime-evidence.yml` — trusted bot logins and bypassable
+>   categories. Covered by the `stamphog_policy` deny.
+> - `.github/workflows/pr-approval-agent.yml` — runs with `GITHUB_TOKEN` +
+>   `ANTHROPIC_API_KEY` repo secret instead of the Stamphog GitHub App;
+>   the decide-delta/dismiss jobs are kept but post as github-actions[bot].
+> - `.github/workflows/garnet-ci.yml` — runs dependency install under the
+>   Garnet sensor on every PR so the evidence exists before review.
 
 > [!NOTE]
 > This directory (together with `.stamphog/`) is vendored into other repos — e.g. [MLHog](https://github.com/PostHog/MLHog/tree/master/tools/pr-approval-agent) — each documenting its intentional local changes in its own copy of this README. When you change the engine or policy format here, those copies stay stale until someone re-syncs them, so give the owning teams a heads-up (or re-sync yourself: diff, re-copy, re-apply their documented local changes).
@@ -25,8 +75,9 @@ next push, or re-apply the label once the backend recovers.
 review in flight (👀 reaction) after the polling budget — not a verdict on the
 PR, so the next push retries automatically. When the whole
 fleet of stamphog reviews suddenly returns `ERROR`, suspect the
-`STAMPHOG_ANTHROPIC_API_KEY` org secret first (stamphog uses its own dedicated
-Anthropic key, separate from the shared `ANTHROPIC_API_KEY`).
+`ANTHROPIC_API_KEY` secret first. Upstream runs stamphog on a dedicated
+`STAMPHOG_ANTHROPIC_API_KEY`; this fork reads `ANTHROPIC_API_KEY` and falls
+back to the upstream name.
 
 ### Local testing
 

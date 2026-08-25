@@ -1,0 +1,89 @@
+name: Garnet Evidence Status
+
+# Prod-shaped evidence wiring, vendored from garnet-labs/posthog. Mirrors the
+# Garnet Runtime Review verdict for the PR head as a `garnet/runtime-evidence`
+# commit status (visible in the checks UI, usable in branch protection), and
+# syncs the head-bound record into the PR description between
+# `<!-- garnet:evidence:begin -->` / `<!-- garnet:evidence:end -->` markers so
+# description-reading AI reviewers (Greptile, CodeRabbit, Qodo, Copilot)
+# ground in recorded evidence.
+#
+# Deviations from the PostHog original, kept deliberately thin:
+#   - PostHog scopes this to `stamphog`-labeled PRs; this reference syncs every
+#     same-repo testbed PR so the reviewer-consumption demo always grounds.
+#   - workflow_dispatch(pr_number) added for manual re-syncs.
+#
+# The issue_comment arm fires when the Garnet bot's sticky comment lands or
+# updates (the record usually arrives after CI completes), so the status and
+# description follow the record without polling.
+on:
+    pull_request:
+        types: [labeled, ready_for_review, synchronize]
+    issue_comment:
+        types: [created, edited]
+    workflow_dispatch:
+        inputs:
+            pr_number:
+                description: PR number to sync
+                required: true
+                type: number
+
+permissions:
+    contents: read
+    statuses: write
+    pull-requests: write
+
+concurrency:
+    group: garnet-evidence-status-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+    cancel-in-progress: true
+
+jobs:
+    status:
+        if: >-
+            github.event_name == 'workflow_dispatch'
+            || (
+              github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name == github.repository
+            )
+            || (
+              github.event_name == 'issue_comment'
+              && github.event.issue.pull_request
+              && github.event.comment.user.login == 'garnet-runtime-review[bot]'
+              && contains(github.event.comment.body, 'garnet-runtime-review')
+            )
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+
+        steps:
+            # Trusted source only: script from the base branch (PR events) or
+            # the default branch (comment/dispatch events), never the PR head.
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch }}
+                  sparse-checkout: |
+                      tools/pr-approval-agent
+                      .stamphog
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v7
+              with:
+                  enable-cache: false
+
+            - name: Post evidence status
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  uv run tools/pr-approval-agent/evidence_status.py \
+                    ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }} \
+                    --repo ${{ github.repository }}
+
+            # Same parse, rendered into the PR description between
+            # garnet:evidence markers, so AI reviewers that read the body
+            # ground in head-pinned recorded evidence.
+            - name: Sync evidence into PR body
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  uv run tools/pr-approval-agent/evidence_body.py \
+                    ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }} \
+                    --repo ${{ github.repository }}

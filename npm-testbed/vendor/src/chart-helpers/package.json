@@ -1,8 +1,0 @@
-{
-  "name": "chart-helpers",
-  "version": "1.0.0",
-  "description": "Small charting helpers for the testbed app (demo).",
-  "main": "index.js",
-  "dependencies": { "date-fmt": "1.0.0" },
-  "bundleDependencies": ["date-fmt"]
-}
