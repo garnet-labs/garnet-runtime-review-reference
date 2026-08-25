@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit adapter of the repository's runtime-evidence consumption contract.
+# The normative text is docs/SPINE.md; this file quotes it, it does not extend it.
+reviews:
+  poem: false
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        Apply docs/SPINE.md (Record → Mirror → Verdict → Utterance) and REVIEW.md.
+        The PR description carries a Runtime evidence (Garnet) section between
+        <!-- garnet:evidence:begin --> and <!-- garnet:evidence:end -->. Use it only
+        when its <!-- garnet:commit <sha> --> equals the PR head; otherwise the
+        verdict is undeterminable — no runtime evidence, never a clean run. Branch
+        on the <!-- garnet:summary {...} --> register: previous === null means
+        snapshot (verdict: recorded); changed = 0 means unchanged; changed > 0 means
+        changed. Speak exactly one utterance for your verdict, prefixed exactly
+        "Runtime evidence (Garnet, head <sha7>): ". On recorded/unchanged, one line
+        and no further runtime commentary. On changed, quote the record's delta
+        one-liners verbatim, link the Execution Profile, and ask whether the delta
+        is expected given the diff — on dependency changes, flag any recorded
+        destination or execution chain the change does not explain. An execution
+        chain is one root-to-action path; never say "process chain" or "process
+        lineage"; never claim k-of-n coverage; never repeat verdicts, scores, or
+        severities from Garnet. Evidence never approves — judgment stays with you,
+        derived from the diff.

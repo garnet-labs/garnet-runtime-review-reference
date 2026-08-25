@@ -22,7 +22,7 @@ The gate's runtime-assurance rule is pure and unit-tested. You can prove the A/B
 without any network or API key:
 
 ```bash
-git clone https://github.com/garnet-labs/garnet-runtime-review-demo
+git clone https://github.com/garnet-labs/garnet-runtime-review-reference
 cd garnet-runtime-review-demo
 PYTHONPATH=tools/pr-approval-agent:tools/owners \
   python -m pytest tools/pr-approval-agent/test_garnet_runtime_proof.py -v
@@ -41,7 +41,7 @@ The full engine runs the same deterministic gate the CI uses. From a clone with
 ```bash
 git fetch origin "pull/<PR_NUMBER>/head"
 PYTHONPATH=tools/owners uv run tools/pr-approval-agent/review_pr.py <PR_NUMBER> \
-  --repo garnet-labs/garnet-runtime-review-demo \
+  --repo garnet-labs/garnet-runtime-review-reference \
   --dry-run
 ```
 

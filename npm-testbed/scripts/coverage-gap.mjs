@@ -134,7 +134,7 @@ if (domains.length > 0) {
   lines.push("No execution record was available for this run (sensor profile missing) — absence of evidence, not a clean run.")
 }
 lines.push("")
-lines.push("Cross-check against the **Garnet Runtime Review** comment on this PR (process lineage + destinations, per job) before finalizing a review — see `REVIEW.md`.")
+lines.push("Cross-check against the **Garnet Runtime Review** comment on this PR (execution chains + destinations, per job) before finalizing a review — see `REVIEW.md`.")
 if (process.env.HEAD_SHA) {
   lines.push("")
   lines.push(`<sub>Head \`${process.env.HEAD_SHA.slice(0, 12)}\` · rendered by \`npm-testbed/scripts/coverage-gap.mjs\`</sub>`)

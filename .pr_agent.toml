@@ -1,0 +1,32 @@
+# Qodo (pr-agent) adapter of the repository's runtime-evidence consumption
+# contract. The normative text is docs/SPINE.md; this file quotes it, it does
+# not extend it.
+
+[pr_reviewer]
+extra_instructions = """
+Apply docs/SPINE.md (Record -> Mirror -> Verdict -> Utterance) and REVIEW.md.
+The PR description carries a Runtime evidence (Garnet) section between
+<!-- garnet:evidence:begin --> and <!-- garnet:evidence:end -->. Use it only
+when its <!-- garnet:commit <sha> --> equals the PR head; otherwise the verdict
+is undeterminable - no runtime evidence, never a clean run. Branch on the
+<!-- garnet:summary {...} --> register: previous == null is a snapshot
+(verdict: recorded); changed = 0 is unchanged; changed > 0 is changed. Speak
+exactly one utterance for your verdict, prefixed exactly
+"Runtime evidence (Garnet, head <sha7>): ". On recorded/unchanged, one line and
+no further runtime commentary. On changed, quote the record's delta one-liners
+verbatim, link the Execution Profile, and ask whether the delta is expected
+given the diff. Never treat a dependency or lockfile change as low review
+effort without a head-bound unchanged record. An execution chain is one
+root-to-action path; never say "process chain" or "process lineage"; never
+claim k-of-n coverage; never repeat verdicts, scores, or severities from
+Garnet. Evidence never approves - judgment stays with you, derived from the
+diff.
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+Before suggesting changes on dependency or install-path code, read the Runtime
+evidence (Garnet) section of the PR description (head-bound only, per
+docs/SPINE.md). Ground suggestions in recorded execution chains and outbound
+destinations rather than speculation about runtime behavior.
+"""
