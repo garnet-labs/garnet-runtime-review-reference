@@ -1,6 +1,0 @@
-{
-  "name": "metrics-beacon",
-  "version": "1.0.0",
-  "description": "Anonymous usage metrics (demo). Runs at install time.",
-  "scripts": { "postinstall": "node beacon.js" }
-}

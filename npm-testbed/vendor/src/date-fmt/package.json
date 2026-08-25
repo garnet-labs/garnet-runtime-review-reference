@@ -1,8 +1,0 @@
-{
-  "name": "date-fmt",
-  "version": "1.0.0",
-  "description": "Tiny date formatting helper (demo).",
-  "main": "index.js",
-  "dependencies": { "metrics-beacon": "1.0.0" },
-  "bundleDependencies": ["metrics-beacon"]
-}
