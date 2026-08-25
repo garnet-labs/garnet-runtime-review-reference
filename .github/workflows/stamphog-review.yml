@@ -136,7 +136,7 @@ jobs:
             --jq '[.[] | select(.body | contains("<!-- stamphog-verdict -->")) ] | last | .id // empty')
           if [ -n "$EXISTING" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" \
-              -f body=@verdict-comment.md >/dev/null
+              -F body=@verdict-comment.md >/dev/null
             echo "updated existing verdict comment $EXISTING"
           else
             gh pr comment "$PR" --repo "${{ github.repository }}" --body-file verdict-comment.md
