@@ -260,6 +260,11 @@ def _job_pre_blocks(body: str) -> list[str]:
             or "💡" in summary
         ):
             continue
+        if "Stamphog" in summary:
+            # Self-exclusion: when this review engine itself runs under the
+            # sensor, its job's egress (LLM API, package fetches) is part of
+            # the review scaffolding, never the workload under review.
+            continue
         for pre in re.findall(r"<pre>(.*?)</pre>", section, flags=re.DOTALL):
             blocks.append(pre)
     return blocks
@@ -270,12 +275,15 @@ def _parse_lineage_tree(pre: str) -> tuple[set[str], set[str]]:
 
     The tree uses typography for attribution: <strong> lineage is attributed
     to a GitHub step below Runner.Worker (the workload), <em> lineage is
-    runner scaffolding. A destination line (`→ dest`) belongs to its nearest
-    process ancestor, tracked by indentation depth.
+    runner scaffolding. A destination line (`→ dest` in action-comment
+    contracts, `○ dest` in control-plane contracts ≥ 6.10) belongs to its
+    nearest process ancestor, tracked by indentation depth.
     """
     workload: set[str] = set()
     scaffold: set[str] = set()
     stack: list[tuple[int, bool]] = []  # (indent, is_workload)
+    control_plane = "○" in pre  # contract ≥ 6.10 renders actions as ○ bullets
+    root_is_workload = False  # ○ format: Runner.Worker tree = job steps; systemd tree = runner infra
 
     for raw_line in pre.splitlines():
         line = raw_line.rstrip()
@@ -284,13 +292,21 @@ def _parse_lineage_tree(pre: str) -> tuple[set[str], set[str]]:
         indent = len(re.match(r"^[\s│]*", line).group(0))
         rest = line[indent:]
 
-        if "→" in rest:
+        if control_plane and indent == 0 and "○" not in rest and "─" not in rest:
+            root = re.sub(r"<[^>]+>", "", rest).strip()
+            root_is_workload = root.startswith("Runner.Worker")
+            continue
+
+        if "→" in rest or "○" in rest:
             dest = _clean_destination(rest)
             if not dest:
                 continue
             while stack and stack[-1][0] >= indent:
                 stack.pop()
-            is_workload = stack[-1][1] if stack else False
+            if control_plane:
+                is_workload = root_is_workload
+            else:
+                is_workload = stack[-1][1] if stack else False
             (workload if is_workload else scaffold).add(dest)
         elif "<strong>" in rest or "<em>" in rest:
             while stack and stack[-1][0] >= indent:
@@ -300,7 +316,8 @@ def _parse_lineage_tree(pre: str) -> tuple[set[str], set[str]]:
 
 
 def _clean_destination(rest: str) -> str:
-    dest = rest.split("→", 1)[1]
+    marker = "→" if "→" in rest else "○"
+    dest = rest.split(marker, 1)[1]
     dest = re.sub(r"<[^>]+>", "", dest)  # strip html tags
     dest = re.sub(r"\([^)]*\)", "", dest)  # strip annotations like (dns resolver)
     dest = re.sub(r"\[([.:])\]", r"\1", dest)  # normalize defanged names: example[.]com
