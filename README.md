@@ -110,9 +110,11 @@ internals — any consumer of PR comments could do the same.
 The StampHog gate is one consumer. This repository also wires the same record
 into the reviewers most teams already run, through one shared contract —
 [`docs/SPINE.md`](docs/SPINE.md): **Record → Mirror → Verdict → Utterance**.
-One record (the head-bound Garnet comment), one delivery point (mirrored
-verbatim into the PR description by
-[`garnet-evidence-mirror.mjs`](.github/scripts/garnet-evidence-mirror.mjs)),
+One record (the head-bound Garnet comment), one delivery point (rendered into
+the PR description and a `garnet/runtime-evidence` commit status by
+[`evidence_body.py`](tools/pr-approval-agent/evidence_body.py) and
+[`evidence_status.py`](tools/pr-approval-agent/evidence_status.py) via
+[`garnet-evidence-status.yml`](.github/workflows/garnet-evidence-status.yml)),
 one fail-closed verdict table, and one bounded utterance per verdict — so
 grounded reviewers add one quiet line on clean PRs and get loud only on a real
 runtime delta.

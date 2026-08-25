@@ -31,6 +31,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from familiarity import AuthorFamiliarity, compute_familiarity, familiarity_evidence
+from gate_profile import (
+    CLEAR as GATE_CLEAR,
+    ESCALATE as GATE_ESCALATE,
+    GateDecision,
+    evaluate as evaluate_gate_profile,
+    load_config as load_gate_profile_config,
+    prompt_block as gate_profile_prompt_block,
+)
 from gates import (
     MAX_FILES,
     MAX_LINES,
@@ -63,11 +71,20 @@ from github import (
     provenance_evidence,
     write_pr_diff,
 )
-from garnet_runtime import fetch_garnet_record, garnet_record_pending, runtime_assured_files, runtime_summary
 from manifest_risk import manifest_script_changes
 from migration_risk import migration_check_pending, safe_migration_files
 from policy import EffectivePolicy, ScopeBudget, _sanitize_untrusted, repo_root, resolve
 from reviewer import Reviewer
+from runtime_evidence import (
+    RuntimeEvidence,
+    bypassable_deny,
+    citation_block as runtime_evidence_citation_block,
+    evidence_dict as runtime_evidence_dict,
+    fetch_evidence_comment,
+    load_config as load_runtime_evidence_config,
+    parse_comment as parse_runtime_evidence_comment,
+    prompt_block as runtime_evidence_prompt_block,
+)
 from version import STAMPHOG_VERSION
 
 try:
@@ -203,7 +220,6 @@ class Pipeline:
         self.provenance: CommitProvenance | None = None
         self.familiarity: AuthorFamiliarity | None = None
         self.classification: dict = {}
-        self.garnet_record = None
         self.effective_policy: EffectivePolicy | None = None
         self._diff_path: Path | None = None
         self.gate_results: list[GateResult] = []
@@ -221,9 +237,6 @@ class Pipeline:
 
         if self._only_pending_migration_check():
             return self._refuse_pending_migration_check()
-
-        if self._only_pending_garnet_record():
-            return self._refuse_pending_garnet_record()
 
         if self.dry_run:
             self.final_verdict = "DRY-RUN"
@@ -269,37 +282,6 @@ class Pipeline:
         if any(not r.passed and r.gate != "deny-list" for r in self.gate_results):
             return False
         return migration_check_pending(self.pr.check_runs, self.pr.file_paths)
-
-    def _only_pending_garnet_record(self) -> bool:
-        """True when the only thing blocking approval is a pending Garnet runtime record.
-
-        Mirrors `_only_pending_migration_check` for dependency territory: a
-        dependency PR whose Garnet record hasn't landed for the current head
-        gets a specific "wait for the record" reason instead of the generic
-        deny — the verdict must never race the sensor.
-        """
-        if self.classification.get("deny_categories", []) != ["deps_toolchain"]:
-            return False
-        if any(not r.passed and r.gate not in ("deny-list", "tier") for r in self.gate_results):
-            return False
-        return garnet_record_pending(self.garnet_record, self.pr.head_sha, self.pr.file_paths)
-
-    def _refuse_pending_garnet_record(self) -> str:
-        self.final_verdict = "REFUSED"
-        self.reviewer_output = {
-            "verdict": "REFUSE",
-            "reasoning": (
-                "The Garnet Runtime Review record has not been posted for this "
-                "commit yet. Wait for the recording workflow to finish (the "
-                "sticky Garnet comment will pin this head), then re-apply the "
-                "`stamphog` label to retry."
-            ),
-            "risk": "unknown",
-            "issues": [],
-        }
-        print(f"\n{_warn('REFUSED')} — Garnet runtime record pending for this head; re-label after it lands")
-        self._capture_review_completed("DENIED", "PENDING-GARNET-RECORD")
-        return self.final_verdict
 
     def _refuse_bot_author(self) -> str:
         """Hard gate: stamphog never reviews bot-authored PRs.
@@ -426,12 +408,19 @@ class Pipeline:
         breadth = scope_breadth(top_dirs)
         cc = parse_conventional_commit(pr.title)
         safe_migrations = safe_migration_files(pr.check_runs, file_paths)
-        # Garnet runtime assurance — the deps_toolchain analogue of the
-        # Migration risk bypass. Fetched once per classify pass; stale or
-        # off-baseline records confer nothing (see garnet_runtime.py).
-        self.garnet_record = fetch_garnet_record(pr.repo, pr.number)
-        runtime_assured = runtime_assured_files(self.garnet_record, pr.head_sha, file_paths)
-        deny = detect_deny_categories(file_paths, ignored_files=safe_migrations | runtime_assured)
+        deny = detect_deny_categories(file_paths, ignored_files=safe_migrations)
+        # Garnet runtime evidence (vendored local extension — see README):
+        # the kernel-recorded execution tree bound to the head commit. A
+        # usable tree (recorded/unchanged) may clear a deps_toolchain-only
+        # deny (to LLM review, never auto-approve); a genuinely new
+        # destination versus the previously profiled commit is surfaced to
+        # the reviewer as a showstopper. Config absent → everything below
+        # is a no-op.
+        runtime_evidence_config = load_runtime_evidence_config(REPO_ROOT / ".stamphog")
+        gate_profile_config = load_gate_profile_config(REPO_ROOT / ".stamphog")
+        runtime_evidence: RuntimeEvidence | None = None
+        gate_decision: GateDecision | None = None
+        runtime_evidence_bypassed: list[str] = []
         dep_manifests = dependency_manifests_without_lockfile(file_paths)
         # Deterministic first line for the manifest scripts risk: an edit to
         # scripts/lifecycle/build keys hard-denies rather than resting solely
@@ -441,6 +430,39 @@ class Pipeline:
         )
         if risky_manifests and "deps_toolchain" not in deny:
             deny = sorted([*deny, "deps_toolchain"])
+        if runtime_evidence_config is not None:
+            evidence_body = fetch_evidence_comment(self.repo, self.pr_number, runtime_evidence_config)
+            runtime_evidence = (
+                parse_runtime_evidence_comment(evidence_body, pr.head_sha)
+                if evidence_body
+                else RuntimeEvidence(status="missing")
+            )
+            # Contract 7.0 machine block: the same comment's garnet:summary
+            # marker, read structurally. It gates the bypass alongside the
+            # tree parser — a deny clears only when both agree.
+            if gate_profile_config is not None:
+                gate_decision = evaluate_gate_profile(evidence_body, pr.head_sha, deny, gate_profile_config)
+            # Manifest script/lifecycle changes keep their deny even with
+            # clean evidence: scripts can behave differently outside CI
+            # (conditional or time-delayed egress), and _check_deny_list
+            # denies on manifest_script_changes independently — bypassing
+            # here would record a bypass that had no effect.
+            if not risky_manifests:
+                runtime_evidence_bypassed = bypassable_deny(deny, runtime_evidence, runtime_evidence_config)
+            if gate_profile_config is not None:
+                # Both readings of the same comment must agree. The marker is
+                # the contract surface, so an escalating or undeterminable
+                # machine verdict withholds a bypass the tree parser would
+                # otherwise grant.
+                cleared_by_marker = set(gate_decision.cleared_denies) if gate_decision else set()
+                withheld = [c for c in runtime_evidence_bypassed if c not in cleared_by_marker]
+                if withheld:
+                    verdict = gate_decision.outcome if gate_decision else "undeterminable"
+                    note = "workload changed" if verdict == GATE_ESCALATE else verdict
+                    print(_warn(f"gate profile withholds the {', '.join(withheld)} bypass ({note})"))
+                    runtime_evidence_bypassed = [c for c in runtime_evidence_bypassed if c in cleared_by_marker]
+            if runtime_evidence_bypassed:
+                deny = [c for c in deny if c not in runtime_evidence_bypassed]
         title_flags = [
             c
             for c in detect_title_scrutiny_flags(pr.title)
@@ -490,20 +512,15 @@ class Pipeline:
             "deny_categories": deny,
             "title_scrutiny_flags": title_flags,
             "safe_migration_files": sorted(safe_migrations),
-            "runtime_assured_files": sorted(runtime_assured),
-            "garnet_runtime": (
-                {
-                    "commit": self.garnet_record.commit,
-                    "pinned_to_head": self.garnet_record.pinned_to(pr.head_sha),
-                    "pending": self.garnet_record.pending,
-                    "workload_destinations": sorted(self.garnet_record.workload_destinations),
-                    "scaffold_destinations": sorted(self.garnet_record.scaffold_destinations),
-                    "off_baseline_destinations": sorted(self.garnet_record.off_baseline()),
-                    "profile_url": self.garnet_record.profile_url,
-                }
-                if self.garnet_record
-                else {}
-            ),
+            "runtime_evidence_status": runtime_evidence.status if runtime_evidence else None,
+            "runtime_evidence_block": runtime_evidence_prompt_block(runtime_evidence) if runtime_evidence else None,
+            "runtime_evidence_citation": runtime_evidence_citation_block(runtime_evidence)
+            if runtime_evidence
+            else None,
+            "runtime_evidence": runtime_evidence_dict(runtime_evidence),
+            "runtime_evidence_bypassed": runtime_evidence_bypassed,
+            "gate_profile": gate_decision.as_dict() if gate_decision else None,
+            "gate_profile_block": gate_profile_prompt_block(gate_decision) if gate_decision else None,
             "allow_listed_only": allow_only,
             "is_test_only": is_test,
             "has_dep_changes": has_dependency_changes(file_paths),
@@ -611,6 +628,10 @@ class Pipeline:
             ("size", self._check_size),
             ("tier", self._check_tier),
         ]
+        if self.classification.get("runtime_evidence") is not None:
+            gates.insert(2, ("runtime evidence", self._check_runtime_evidence))
+        if self.classification.get("gate_profile") is not None:
+            gates.insert(3, ("gate profile", self._check_gate_profile))
         for name, check in gates:
             passed, message = check()
             result = GateResult(name, passed, message)
@@ -619,24 +640,6 @@ class Pipeline:
 
         ownership = self._summarize_ownership()
         print(_dim(f"  ownership: {ownership}"))
-
-        # Garnet runtime signal, in the same context-line shape as ownership.
-        # This is the record that gated the deps_toolchain bypass above; showing
-        # it here is how the runtime evidence enters the decision surface.
-        gr = self.classification.get("garnet_runtime") or {}
-        touches_deps = bool(
-            self.classification.get("has_dep_changes")
-            or self.classification.get("dep_manifests_without_lockfile")
-        )
-        if gr or touches_deps:
-            summary = runtime_summary(
-                self.garnet_record,
-                self.pr.head_sha,
-                self.classification.get("runtime_assured_files", []),
-                touches_deps,
-            )
-            self.classification["runtime_summary"] = summary
-            print(_dim(f"  runtime (Garnet): {summary}"))
 
     def _any_gate_denied(self) -> bool:
         return any(not r.passed for r in self.gate_results)
@@ -666,17 +669,72 @@ class Pipeline:
     def _check_deny_list(self) -> tuple[bool, str]:
         deny = self.classification["deny_categories"]
         risky = self.classification.get("manifest_script_changes", [])
-        # When the deps_toolchain deny survived because the runtime record showed
-        # off-baseline egress, name that on the gate line itself — the deny and
-        # its runtime cause read as one fact, not two.
-        gr = self.classification.get("garnet_runtime") or {}
-        off = gr.get("off_baseline_destinations") or []
-        garnet_note = f" [Garnet: off-baseline egress → {', '.join(off)}]" if ("deps_toolchain" in deny and off) else ""
         if risky:
-            return False, f"matches: {', '.join(deny)} (scripts/hooks changed in {', '.join(risky)}){garnet_note}"
+            return False, f"matches: {', '.join(deny)} (scripts/hooks changed in {', '.join(risky)})"
         if deny:
-            return False, f"matches: {', '.join(deny)}{garnet_note}"
+            return False, f"matches: {', '.join(deny)}"
+        bypassed = self.classification.get("runtime_evidence_bypassed", [])
+        if bypassed:
+            head = (self.classification.get("runtime_evidence") or {}).get("commit_sha", "")[:7]
+            return True, (
+                f"{', '.join(bypassed)} cleared to full review by the runtime evidence gate "
+                f"(execution tree for head `{head}`)"
+            )
         return True, "no deny categories matched"
+
+    def _check_runtime_evidence(self) -> tuple[bool, str]:
+        """How the execution tree feeds this review — rendered as its own gate row.
+
+        Not a static egress check: the tree (process lineage → destination)
+        is handed to the LLM reviewer to judge against the diff. "New" is an
+        observation; "unexpected" is a judgment against the diff — so a
+        diverged comparison never fails this row deterministically. The new
+        workload chains are named here and carried to the reviewer with
+        showstopper guidance; runner-substrate churn never counts toward
+        divergence; missing evidence passes the row but leaves the deny-list
+        untouched (fail-closed on the bypass).
+        """
+        ev = self.classification["runtime_evidence"]
+        head = ev.get("commit_sha", "")[:7]
+        dests = ev.get("destinations", [])
+        chains = {d["lineage"] for d in dests if d["lineage"]}
+        reshaped = [d for d in dests if d.get("reshaped")]
+        if ev["status"] == "missing":
+            return True, "none recorded for this head — deny-list applies unmodified"
+        if ev["status"] == "diverged":
+            new = [d for d in dests if d["new"] and not d.get("substrate")]
+            named = "; ".join(f"{d['lineage']} → {d['dest']}" for d in new[:3])
+            return True, (
+                f"{len(new)} NEW workload destination(s) vs previous profiled commit — "
+                f"handed to the reviewer to judge against the diff: {named}"
+            )
+        if ev["status"] == "unchanged":
+            detail = "no new destinations vs previous profiled commit"
+            if reshaped:
+                detail += f", {len(reshaped)} reshaped chain(s)"
+        else:
+            detail = "first profiled commit (snapshot)"
+        return True, (
+            f"execution tree recorded for head `{head}` — {len(dests)} destination(s) across "
+            f"{len(chains)} chain(s), {detail}; tree handed to the reviewer"
+        )
+
+    def _check_gate_profile(self) -> tuple[bool, str]:
+        """What the comment's machine block says — contract 7.0's verdict table.
+
+        Structural, not prose: the marker states the capture, the baseline
+        and the delta, and every missing or unknown field lands on
+        `undeterminable`. Like the tree row this never fails the review
+        deterministically — an escalation is handed to the reviewer with the
+        workload delta quoted, and an undeterminable outcome simply leaves
+        the deny-list untouched.
+        """
+        gate = self.classification["gate_profile"]
+        cleared = gate["cleared_denies"]
+        detail = f"{gate['outcome']} — {gate['reason']}"
+        if gate["outcome"] == GATE_CLEAR and cleared:
+            detail += f" (cleared: {', '.join(cleared)})"
+        return True, detail
 
     def _summarize_ownership(self) -> str:
         """Build ownership context for the LLM (not a hard gate)."""
@@ -803,8 +861,8 @@ class Pipeline:
                         print(
                             _warn(
                                 "  This is an LLM backend failure (credentials, credit, or outage), "
-                                "not a verdict on the PR. Check the STAMPHOG_ANTHROPIC_API_KEY "
-                                "secret (or local ANTHROPIC_API_KEY)."
+                                "not a verdict on the PR. Check the ANTHROPIC_API_KEY "
+                                "or STAMPHOG_ANTHROPIC_API_KEY secret."
                             )
                         )
                         self.reviewer_output = {
@@ -972,6 +1030,9 @@ class Pipeline:
 
         parts = [part for part in (reasoning, "\n".join(f"- {b}" for b in bullets) if bullets else "") if part]
         parts.append(details)
+        citation = self.classification.get("runtime_evidence_citation")
+        if citation:
+            parts.append(citation)
         return "\n\n".join(parts)
 
     def to_dict(self) -> dict:
@@ -995,8 +1056,10 @@ class Pipeline:
                 "deny_categories": self.classification.get("deny_categories", []),
                 "title_scrutiny_flags": self.classification.get("title_scrutiny_flags", []),
                 "safe_migration_files": self.classification.get("safe_migration_files", []),
-                "runtime_assured_files": self.classification.get("runtime_assured_files", []),
-                "garnet_runtime": self.classification.get("garnet_runtime", {}),
+                "runtime_evidence_status": self.classification.get("runtime_evidence_status"),
+                "runtime_evidence": self.classification.get("runtime_evidence"),
+                "runtime_evidence_bypassed": self.classification.get("runtime_evidence_bypassed", []),
+                "gate_profile": self.classification.get("gate_profile"),
                 "ownership": self.classification.get("ownership", {}),
                 "familiarity": familiarity_evidence(self.familiarity),
             },
@@ -1036,7 +1099,7 @@ class Pipeline:
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI PR approval agent")
     parser.add_argument("pr_number", type=int, help="PR number to review")
-    parser.add_argument("--repo", default="PostHog/posthog", help="GitHub repo (owner/name)")
+    parser.add_argument("--repo", default="garnet-labs/garnet-runtime-review-reference", help="GitHub repo (owner/name)")
     parser.add_argument("--dry-run", action="store_true", help="Run gates only, skip LLM calls")
     parser.add_argument("--output-json", type=str, help="Save full result to JSON file")
     parser.add_argument("-v", "--verbose", action="store_true", help="Show agent tool calls during review")

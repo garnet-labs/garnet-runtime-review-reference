@@ -43,8 +43,13 @@ judgments. Judgment stays with the reviewer.
 
 The record lands in exactly **one canonical place**: the PR description,
 between line-anchored `<!-- garnet:evidence:begin -->` and
-`<!-- garnet:evidence:end -->` delimiters, mirrored **verbatim** by
-[`.github/scripts/garnet-evidence-mirror.mjs`](../.github/scripts/garnet-evidence-mirror.mjs).
+`<!-- garnet:evidence:end -->` delimiters, rendered by
+[`tools/pr-approval-agent/evidence_body.py`](../tools/pr-approval-agent/evidence_body.py)
+and surfaced as a `garnet/runtime-evidence` commit status by
+[`tools/pr-approval-agent/evidence_status.py`](../tools/pr-approval-agent/evidence_status.py) —
+both driven by
+[`.github/workflows/garnet-evidence-status.yml`](../.github/workflows/garnet-evidence-status.yml),
+the same wiring the engine runs in its production lanes.
 
 - Mirrored only when `garnet:commit` equals the current PR head. A stale
   record is never bound to a new head.
@@ -53,8 +58,9 @@ between line-anchored `<!-- garnet:evidence:begin -->` and
 - Past the GitHub body cap (65,536 chars) or on delimiter collision, the
   section keeps the head binding and points to the sticky comment instead of
   truncating bytes.
-- Byte sanctity is verifiable with
-  [`.github/scripts/verify-garnet-evidence.mjs`](../.github/scripts/verify-garnet-evidence.mjs).
+- The section follows the record: the workflow re-fires whenever the trusted
+  Garnet comment is created or edited, so a record that gains jobs never
+  leaves a stale mirror behind.
 
 Every consumer reads the same bytes from the same place, or nothing.
 
