@@ -1,0 +1,7 @@
+name: Dump Step Summary
+description: Post step prints the accumulated GITHUB_STEP_SUMMARY to the log (UAT aid)
+runs:
+  using: node20
+  main: main.js
+  post: post.js
+  post-if: always()
