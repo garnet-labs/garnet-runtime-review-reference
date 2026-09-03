@@ -64,7 +64,7 @@ const jsonUrl = readme.match(
 const runUrl = readme.match(
   new RegExp(`https://github\\.com/${REPO}/actions/runs/\\d+`),
 )?.[0];
-const headSha = readme.match(/\|\s*Head SHA\s*\|\s*`([0-9a-f]{40})`/)?.[1];
+const headSha = readme.match(/Head SHA:\*\*\s*`([0-9a-f]{40})`/)?.[1];
 
 check(Boolean(profileUrl), "README names an Execution Profile permalink");
 check(Boolean(jsonUrl), "README names a public JSON endpoint");
