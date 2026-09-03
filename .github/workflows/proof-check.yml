@@ -17,6 +17,11 @@ name: Proof check
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - "README.md"
+      - "scripts/check-proof.mjs"
+      - ".github/workflows/proof-check.yml"
   schedule:
     - cron: "0 13 * * 1" # Mondays 13:00 UTC
   workflow_dispatch:
