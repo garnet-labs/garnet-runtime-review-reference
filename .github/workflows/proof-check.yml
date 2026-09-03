@@ -1,11 +1,18 @@
-# Living proof — re-asserts the Garnet × stamphog decision rule on a schedule.
+# Proof check — re-asserts that the README's proof loop is still true, and that
+# the repository-policy example still behaves.
 #
-# This is the "the proof still holds" badge. It runs the vendored production
-# engine's runtime-evidence suites — the tree parser, the gate-profile marker
-# consumer, and the status/body delivery surfaces (clean / loud / stale /
-# pending / legend records among the cases). No network, no LLM key required —
-# so it stays green only while the core A/B behaviour is intact.
-name: Living Proof
+# Job `proof` asserts the front door: the exhibit pull request, its Execution
+# Profile permalink and the public JSON endpoint all answer 200 logged out, the
+# head SHA in the README is still the exhibit's head, and the README stays
+# inside the ratified vocabulary.
+#
+# Job `policy-example` runs the vendored stamphog engine's suites — the tree
+# parser, the gate-profile marker consumer, and the status/body delivery
+# surfaces. That gate is an example of repository policy consuming an Execution
+# Profile; it is not what Garnet produces.
+#
+# Both jobs only read.
+name: Proof check
 
 on:
   push:
@@ -19,7 +26,23 @@ permissions:
 
 jobs:
   proof:
-    name: Re-assert the runtime-review A/B
+    name: Assert the public proof loop
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check the README's proof loop
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-proof.mjs
+
+  policy-example:
+    name: Re-assert the repository-policy example
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,7 +51,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Run the living-proof suite
+      - name: Run the policy-example suite
         env:
           PYTHONPATH: ${{ github.workspace }}/tools/pr-approval-agent:${{ github.workspace }}/tools/owners
         run: |
@@ -40,7 +63,7 @@ jobs:
             tools/pr-approval-agent/test_evidence_status.py \
             -v | tee proof-output.txt
           {
-            echo "## Living proof — runtime-review A/B still holds"
+            echo "## Repository-policy example — the gate still behaves"
             echo ""
             echo '```'
             cat proof-output.txt
