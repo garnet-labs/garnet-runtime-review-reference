@@ -14,13 +14,19 @@ request, without an account.
 
 ## The live proof
 
-| | |
-|---|---|
-| Exhibit pull request | [#29 — `deps(testbed): add chart-helpers@1.0.0`](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/29) |
-| Head SHA | `23bbd8859904af464185d0bb4d1f93ff75ef8864` |
-| Execution Profile (public, no login) | [app.garnet.ai/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0](https://app.garnet.ai/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0) |
-| Same profile as JSON (public, no login) | [app.garnet.ai/api/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0](https://app.garnet.ai/api/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0) |
-| CI run that produced it | [run 32909555254](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/32909555254), job `record` |
+**Exhibit pull request:**
+[#29 — `deps(testbed): add chart-helpers@1.0.0`](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/29)
+
+**Head SHA:** `23bbd8859904af464185d0bb4d1f93ff75ef8864`
+
+**Execution Profile**, public, no login:
+[app.garnet.ai/public/runs/32909555254](https://app.garnet.ai/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0)
+
+**The same profile as JSON**, public, no login:
+[app.garnet.ai/api/public/runs/32909555254](https://app.garnet.ai/api/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0)
+
+**CI run that produced it:**
+[run 32909555254](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/32909555254), job `record`
 
 The pull request carries a Runtime Review comment written by the Garnet GitHub
 App. The comment is bound to head `23bbd88` and compares it with the previously
@@ -58,23 +64,28 @@ decision stays there.
 
 Real bytes from the Runtime Review comment on the exhibit pull request
 ([comment 5416650121](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/29#issuecomment-5416650121)),
-copied without edits:
+copied without edits, from the first marker through the end of the recorded
+tree:
 
-```text
-<!-- garnet:commit 23bbd8859904af464185d0bb4d1f93ff75ef8864 -->                     (1)
-<!-- garnet:summary {"contract":"6.10.0", ... ,"chains":17,"destinations":12, ... } -->  (2)
-**Execution Profiles recorded for 1 job, triggered by 23bbd88**
+````text
+<!-- garnet:commit 23bbd8859904af464185d0bb4d1f93ff75ef8864 -->
+<!-- garnet:summary {"contract":"6.10.0","githubMeta":"2026-08-08","commit":"23bbd8859904af464185d0bb4d1f93ff75ef8864","previous":"5a6561f0912030d9f938027a521241d6a300d599","jobs":1,"changed":0,"unchanged":1,"noOutbound":0,"vanished":0,"added":0,"removed":0,"backgroundAdded":4,"backgroundRemoved":0,"vanishedDestinations":0,"chains":17,"destinations":12,"recorded":"2026-08-25 23:11:26 UTC","kinds":["network"]} -->
+**Execution Profiles recorded for 1 job, triggered by [`23bbd88`](https://github.com/garnet-labs/garnet-runtime-review-reference/commit/23bbd8859904af464185d0bb4d1f93ff75ef8864)**
 
-> 1 job unchanged · compared with 5a6561f                                            (3)
-> recorded at the kernel by Garnet · 2026-08-25 23:11 UTC
+> *1&nbsp;job unchanged · compared with [`5a6561f`](https://github.com/garnet-labs/garnet-runtime-review-reference/commit/5a6561f0912030d9f938027a521241d6a300d599)*
+> <sub>recorded at the kernel by Garnet · 2026-08-25 23:11 UTC</sub>
 
+<details><summary><code>Garnet Record (install under sensor)</code> / <a href="https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/32909555254"><code>record</code>&nbsp;↗</a> · 12&nbsp;destinations</summary>
+
+```diff
+@@ 5a6561f (previous) vs 23bbd88 (current) @@
   Runner.Worker
   ├─ node
   │  ├─ ○ api.github[.]com
   │  ├─ ○ github[.]com
   │  └─ ○ release-assets.githubusercontent[.]com
   ├─ bash
-  │  └─ node (step: "Install dependencies (the workload)")                           (4)
+  │  └─ node (step: "Install dependencies (the workload)")
   │     ├─ dash
   │     │  └─ node
   │     │     ├─ ○ api.ipify[.]org
@@ -82,23 +93,39 @@ copied without edits:
   │     │     └─ ○ ip-api[.]com
   │     └─ ○ registry.npmjs[.]org
   └─ ○ localhost (dns resolver)
-
-+ systemd (runner background · +4)                                                   (5)
+ 
++ systemd (runner background · +4)
++ ├─ python3.12
++ │  └─ python3.12
++ │     ├─ ○ 168.63.129.16
++ │     └─ ○ 169.254.169.254 (cloud metadata)
++ ├─ hosted-compute-agent
++ │  └─ sudo
++ │     └─ provjobd (ran from /tmp/…)
++ │        └─ ○ hosted-compute-watchdog-prod-iad-01[.]githubapp (github infra)
++ └─ systemd-networkd
++    └─ ○ ip6-allrouters
 ```
+````
 
-1. The commit marker. The comment is bound to one head SHA. A profile recorded
-   on another commit is a different profile.
-2. The machine-readable marker: contract version and the counts for this
-   recording — 17 execution chains, 12 destinations.
-3. The comparison pair, stated in the comment itself: head `23bbd88` against the
-   previously recorded commit `5a6561f`.
-4. One execution chain, read downward: `Runner.Worker → bash → node` (the
-   install step) `→ dash → node → api.ipify[.]org`. The step name is the
-   workflow step that ran. `○` marks the action at the end of the chain.
-5. The runner's own background processes, kept separate from the workflow's.
+Five things to read in it:
 
-The annotated legend at the bottom of the real comment is part of the comment,
-not recorded data.
+1. `<!-- garnet:commit 23bbd88... -->`. The comment is bound to one head SHA. A
+   profile recorded on another commit is a different profile.
+2. `<!-- garnet:summary ... -->`. The machine-readable line: contract `6.10.0`,
+   `chains: 17`, `destinations: 12`, `recorded: 2026-08-25 23:11:26 UTC`.
+3. `@@ 5a6561f (previous) vs 23bbd88 (current) @@`. The comparison pair is
+   stated in the comment itself: head against the previously recorded commit,
+   not pull-request base against head.
+4. `Runner.Worker -> bash -> node (step: "Install dependencies (the workload)")
+   -> dash -> node -> api.ipify[.]org`. Read downward, that is one execution
+   chain. `○` marks the action at the end of it, here an outbound connection.
+   The step name says which workflow step ran the process.
+5. `+ systemd (runner background · +4)`. The runner's own infrastructure,
+   recorded and kept separate from the workflow's processes.
+
+The comment closes with a legend that explains these symbols. That legend is
+part of the comment, not recorded data.
 
 ## Try this in your repository
 
@@ -156,13 +183,17 @@ this repository's policy, not Garnet's.
 
 ## Versions used by the exhibit run
 
-| | Value | Probe |
-|---|---|---|
-| Action ref in the workflow | `garnet-org/action@v2` | `git show 23bbd88:.github/workflows/garnet-record.yml` |
-| What `v2` resolves to today | `3d47f4a9004f7356c980a0e8d420ef5984750e3c`, the same commit as tag `v2.2.0` | `git ls-remote --tags https://github.com/garnet-org/action` |
-| Jibril version | `v2.16.0` | job log of run 32909555254: `Jibril Version: v2.16.0` |
-| Runtime Review contract | `6.10.0` | `garnet:summary` marker in the App comment |
-| Recorded | 2026-08-25 23:11 UTC | `garnet:summary` marker |
+- **Action ref in the workflow:** `garnet-org/action@v2`
+  (probe: `git show 23bbd88:.github/workflows/garnet-record.yml`)
+- **What `v2` resolves to today:** `3d47f4a9004f7356c980a0e8d420ef5984750e3c`,
+  the same commit as tag `v2.2.0`
+  (probe: `git ls-remote --tags https://github.com/garnet-org/action`)
+- **Jibril version:** `v2.16.0`
+  (probe: the job log of run 32909555254, line `Jibril Version: v2.16.0`)
+- **Runtime Review contract:** `6.10.0`
+  (probe: the `garnet:summary` marker in the App comment)
+- **Recorded:** 2026-08-25 23:11 UTC
+  (probe: the `garnet:summary` marker)
 
 `v2` is a floating major tag and can move. Pin to a tag SHA, as the blocks above
 do, if you want a fixed ref.
