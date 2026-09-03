@@ -1,180 +1,206 @@
-# Runtime-grounded PR review — the demo
+# Garnet Runtime Review — the public proof loop
 
-[![Living Proof](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml/badge.svg)](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml)
+[![Proof check](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml/badge.svg)](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml)
 
-**A real merge gate, plus Garnet runtime evidence. Same diff — opposite verdict.**
+Garnet is the execution-evidence layer for code review. It records what an exact
+CI execution did, binds that evidence to the head SHA, and gives humans and
+review agents an Execution Profile they can use to make a better merge decision.
+Garnet records; the reviewer and repository policy decide.
 
-This repo takes a real, unmodified PR-review merge gate (PostHog's open-source
-"stamphog" engine — see [`NOTICE.md`](NOTICE.md)) and adds one thing: the gate
-now reads a **kernel-recorded record of what the change actually did when its CI
-ran**. Everything you can click below is a live pull request and a live CI run
-in this repository — no mocks, no slides.
-
-The whole point in one sentence: a merge gate that only sees a diff has to treat
-every dependency bump the same. A gate that also sees the *runtime* can wave
-through the clean one and stop the poisoned one — and tell you exactly why.
+This repository is where you can read that artifact in the open, on a live pull
+request, without an account.
 
 ---
 
-## The result, at a glance
+## The live proof
 
-The first two demo PRs are the **same shape**: add one dependency (`ms@2.1.3`)
-with a matching lockfile — the change stamphog hard-denies as `deps_toolchain`
-("never auto-approve"). The only variable is what Garnet recorded at install
-time. A third PR ([#6](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/6))
-raises the bar to the realistic case: egress hidden in a *transitive*
-dependency, invisible in the diff.
+**Exhibit pull request:**
+[#29 — `deps(testbed): add chart-helpers@1.0.0`](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/29)
 
-| Demo PR | What the install actually did (Garnet) | Gate **without** Garnet | Gate **with** Garnet |
-|---|---|---|---|
-| **Clean** — [PR #1](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/1) | hit `registry.npmjs.org` only | ❌ **DENY** → every dep PR dumped on a human | ✅ **APPROVE** — "install egress stayed within the registry baseline; no off-baseline destinations" ([run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376231711)) |
-| **Poisoned** — [PR #2](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/2) | postinstall hook ran `curl https://httpbin.org/get` | ❌ **DENY** — but blind to *why* | 🛑 **REFUSE** — "OFF-BASELINE egress to **httpbin.org**, not explained by the `ms@2.1.3` addition — supply-chain risk" ([run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376233945)) |
+**Head SHA:** `23bbd8859904af464185d0bb4d1f93ff75ef8864`
 
-Without Garnet the gate can't tell those two PRs apart. With Garnet, the clean
-bump merges itself and the poisoned one is stopped with the destination named —
-even though its diff looks like a trivial one-liner.
+**Execution Profile**, public, no login:
+[app.garnet.ai/public/runs/32909555254](https://app.garnet.ai/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0)
 
-### The realistic case: egress hidden in a transitive dependency
+**The same profile as JSON**, public, no login:
+[app.garnet.ai/api/public/runs/32909555254](https://app.garnet.ai/api/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0)
 
-The poisoned PR above puts its hook where you could theoretically spot it. The
-harder, more honest case is [**PR #6**](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/6):
-its diff adds **one** top-level dependency (`chart-helpers`) for axis-label
-formatting — 45 lines, a manifest and a lockfile, nothing suspicious. The egress
-lives **two levels down** the dependency tree (`chart-helpers → date-fmt →
-metrics-beacon`), in a bundled `postinstall` that never appears in the diff. A
-diff-only or static reviewer has nothing to flag.
+**CI run that produced it:**
+[run 32909555254](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/32909555254), job `record`
 
-Garnet records the install anyway and the signal flows through stamphog's own
-gates. The Gates block on PR #6 reads ([run](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/30376239347)):
+The pull request carries a Runtime Review comment written by the Garnet GitHub
+App. The comment is bound to head `23bbd88` and compares it with the previously
+recorded commit `5a6561f` — that is the comparison pair, previous recorded
+commit to head, not pull-request base to head.
 
-```text
-  ✗ deny-list: matches: deps_toolchain [Garnet: off-baseline egress → api.ipify.org, httpbin.org, ip-api.com]
-  runtime (Garnet): head-pinned d15540e; off-baseline egress → api.ipify.org, httpbin.org, ip-api.com; deps bypass WITHHELD
+The JSON endpoint returns the same profile the page renders:
+
+```console
+$ curl -s "https://app.garnet.ai/api/public/runs/32909555254?profile=01a03b31-6120-7364-bbc0-f263e7f55ce0" | head -c 320
+{"profiles":[{"schema_version":"runtime-review-public/v3","timestamp":"2026-08-25T23:11:26.335552549Z","run":{"profile_id":"01a03b31-6120-7364-bbc0-f263e7f55ce0","run_id":"32909555254","repository":"garnet-labs/garnet-runtime-review-reference","workflow":"Garnet Record (install under sensor)","job":"record","commit_sha":"303616fa
 ```
 
-…and the LLM reviewer, handed the same signal, refuses in its own words:
+The `commit_sha` in the JSON is `303616fa63129940ee79276fff5c355ad263714e`, the
+`refs/pull/29/merge` commit the runner checked out. The head SHA the comment
+binds to is `23bbd88`. Both are true; they are different commits and the profile
+names each one.
 
-> Gates denied: this dependency add pulls in a transitive package whose install
-> script beacons out to off-baseline hosts (api.ipify.org, httpbin.org,
-> ip-api.com) **per kernel-recorded runtime evidence** — a supply-chain risk
-> invisible in the diff itself.
+## What this evidence shows, and what it does not decide
 
-The runtime evidence is a first-class gate input — not a separate footer — and it
-names all three transitive destinations, head-pinned to the exact PR commit.
+An Execution Profile records:
 
-> Every demo PR here was opened by an **AI coding agent** (see each PR body). That
-> is the real threat model: agents increasingly author dependency changes, and
-> the diff alone can't tell you what the install will do on your runners.
+- every process that ran in the job, as a path from the runner's root process to
+  an action — one such path is an execution chain;
+- the actions those processes took, today outbound connections, and the
+  destination each connection went to;
+- which job, workflow and run produced the recording, and which commit it is
+  bound to.
 
----
+It does not judge, block, or approve anything. It carries no score and no
+verdict. The reviewer reads it, or repository policy consumes it, and the
+decision stays there.
 
-## Why a diff-only gate can't win here
+## Read the comment
 
-A one-line `"ms": "2.1.3"` addition and a poisoned `postinstall` that exfiltrates
-at install time can look **identical** in review. The malicious behaviour lives
-in transitive code and lifecycle scripts that execute in CI — off the diff. So a
-responsible gate does the only safe thing it can: deny all dependency changes and
-route them to a human. That is correct, and it is also exhausting — every clean
-bump pays the same tax as a real threat.
+Real bytes from the Runtime Review comment on the exhibit pull request
+([comment 5416650121](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/29#issuecomment-5416650121)),
+copied without edits, from the first marker through the end of the recorded
+tree:
 
-Garnet closes the gap by recording the install with a kernel-level (eBPF) sensor
-and posting the execution chains + egress as a **public PR comment**. The gate
-consumes that record deterministically.
+````text
+<!-- garnet:commit 23bbd8859904af464185d0bb4d1f93ff75ef8864 -->
+<!-- garnet:summary {"contract":"6.10.0","githubMeta":"2026-08-08","commit":"23bbd8859904af464185d0bb4d1f93ff75ef8864","previous":"5a6561f0912030d9f938027a521241d6a300d599","jobs":1,"changed":0,"unchanged":1,"noOutbound":0,"vanished":0,"added":0,"removed":0,"backgroundAdded":4,"backgroundRemoved":0,"vanishedDestinations":0,"chains":17,"destinations":12,"recorded":"2026-08-25 23:11:26 UTC","kinds":["network"]} -->
+**Execution Profiles recorded for 1 job, triggered by [`23bbd88`](https://github.com/garnet-labs/garnet-runtime-review-reference/commit/23bbd8859904af464185d0bb4d1f93ff75ef8864)**
 
----
+> *1&nbsp;job unchanged · compared with [`5a6561f`](https://github.com/garnet-labs/garnet-runtime-review-reference/commit/5a6561f0912030d9f938027a521241d6a300d599)*
+> <sub>recorded at the kernel by Garnet · 2026-08-25 23:11 UTC</sub>
 
-## The integration — what a harness team actually signs up for
+<details><summary><code>Garnet Record (install under sensor)</code> / <a href="https://github.com/garnet-labs/garnet-runtime-review-reference/actions/runs/32909555254"><code>record</code>&nbsp;↗</a> · 12&nbsp;destinations</summary>
 
-- **No GitHub App install.** The gate is a CLI the engine already runs; Garnet is
-  a GitHub Action step + a public PR comment it reads.
-- **No self-hosted runners.** Everything here runs on stock `ubuntu-latest`.
-- **No maintainer/org permissions** beyond what your own CI already has.
-- **One integration point.** [`garnet_runtime.py`](tools/pr-approval-agent/garnet_runtime.py)
-  is the dependency-territory analogue of PostHog's own `migration_risk.py`
-  check: a clean, head-pinned runtime record lifts the `deps_toolchain` deny;
-  off-baseline egress keeps it and names the destination.
-
+```diff
+@@ 5a6561f (previous) vs 23bbd88 (current) @@
+  Runner.Worker
+  ├─ node
+  │  ├─ ○ api.github[.]com
+  │  ├─ ○ github[.]com
+  │  └─ ○ release-assets.githubusercontent[.]com
+  ├─ bash
+  │  └─ node (step: "Install dependencies (the workload)")
+  │     ├─ dash
+  │     │  └─ node
+  │     │     ├─ ○ api.ipify[.]org
+  │     │     ├─ ○ httpbin[.]org
+  │     │     └─ ○ ip-api[.]com
+  │     └─ ○ registry.npmjs[.]org
+  └─ ○ localhost (dns resolver)
+ 
++ systemd (runner background · +4)
++ ├─ python3.12
++ │  └─ python3.12
++ │     ├─ ○ 168.63.129.16
++ │     └─ ○ 169.254.169.254 (cloud metadata)
++ ├─ hosted-compute-agent
++ │  └─ sudo
++ │     └─ provjobd (ran from /tmp/…)
++ │        └─ ○ hosted-compute-watchdog-prod-iad-01[.]githubapp (github infra)
++ └─ systemd-networkd
++    └─ ○ ip6-allrouters
 ```
-Migration-risk check   →  migrations/ deny bypass   (PostHog's own pattern)
-Garnet runtime record  →  deps_toolchain deny bypass (this demo)
-```
+````
 
-The gate reads only the **public** Garnet comment (markers `<!-- garnet-runtime-review -->`
-and `<!-- garnet:commit <sha> -->`). Nothing in the integration touches Garnet
-internals — any consumer of PR comments could do the same.
+Five things to read in it:
 
----
+1. `<!-- garnet:commit 23bbd88... -->`. The comment is bound to one head SHA. A
+   profile recorded on another commit is a different profile.
+2. `<!-- garnet:summary ... -->`. The machine-readable line: contract `6.10.0`,
+   `chains: 17`, `destinations: 12`, `recorded: 2026-08-25 23:11:26 UTC`.
+3. `@@ 5a6561f (previous) vs 23bbd88 (current) @@`. The comparison pair is
+   stated in the comment itself: head against the previously recorded commit,
+   not pull-request base against head.
+4. `Runner.Worker -> bash -> node (step: "Install dependencies (the workload)")
+   -> dash -> node -> api.ipify[.]org`. Read downward, that is one execution
+   chain. `○` marks the action at the end of it, here an outbound connection.
+   The step name says which workflow step ran the process.
+5. `+ systemd (runner background · +4)`. The runner's own infrastructure,
+   recorded and kept separate from the workflow's processes.
 
-## Reviewer consumption — the spine
+The comment closes with a legend that explains these symbols. That legend is
+part of the comment, not recorded data.
 
-The StampHog gate is one consumer. This repository also wires the same record
-into the reviewers most teams already run, through one shared contract —
-[`docs/SPINE.md`](docs/SPINE.md): **Record → Mirror → Verdict → Utterance**.
-One record (the head-bound Garnet comment), one delivery point (rendered into
-the PR description and a `garnet/runtime-evidence` commit status by
-[`evidence_body.py`](tools/pr-approval-agent/evidence_body.py) and
-[`evidence_status.py`](tools/pr-approval-agent/evidence_status.py) via
-[`garnet-evidence-status.yml`](.github/workflows/garnet-evidence-status.yml)),
-one fail-closed verdict table, and one bounded utterance per verdict — so
-grounded reviewers add one quiet line on clean PRs and get loud only on a real
-runtime delta.
+## Try this in your repository
 
-Each consumer is a thin adapter of the spine, in the config file that reviewer
-already reads:
+1. Install the Garnet GitHub App: <https://github.com/apps/garnet-runtime-review>.
+   The App owns the Runtime Review comment on your pull requests.
+2. Add the sensor step to the job you want recorded, as the first step — every
+   step after it is recorded. Stable release:
 
-| Consumer | Adapter in this repo |
-|---|---|
-| GitHub Copilot code review | [`.github/skills/garnet-runtime-review/SKILL.md`](.github/skills/garnet-runtime-review/SKILL.md) |
-| CodeRabbit | [`.coderabbit.yaml`](.coderabbit.yaml) |
-| Qodo (pr-agent) | [`.pr_agent.toml`](.pr_agent.toml) |
-| Greptile | [`greptile.json`](greptile.json) |
-| Coding agents (Codex, Claude, Devin, …) | [`AGENTS.md`](AGENTS.md) → [`REVIEW.md`](REVIEW.md) |
-| Deterministic merge gate (StampHog) | [`tools/pr-approval-agent/garnet_runtime.py`](tools/pr-approval-agent/garnet_runtime.py) |
+   ```yaml
+   - uses: garnet-org/action@3d47f4a9004f7356c980a0e8d420ef5984750e3c # v2.2.0
+     with:
+       api_token: ${{ secrets.GARNET_API_TOKEN }}
+   ```
 
-Adapters quote the spine; they never restate it. Installing the pattern in
-another repository is one CI step, one mirror job, and whichever adapter
-fragments match the reviewers that repository runs.
+   Release candidate, if you want the newer sensor pin (`v2.3.0` is not tagged
+   yet; `v2.3.0-rc.1` is a prerelease and `v2.17.0-rc.9` is a Jibril prerelease):
 
----
+   ```yaml
+   - uses: garnet-org/action@c747ff1f597c84579e10173301a31c30bb815181 # v2.3.0-rc.1
+     with:
+       api_token: ${{ secrets.GARNET_API_TOKEN }}
+       jibril_version: "v2.17.0-rc.9"
+   ```
 
-## The safety rails (all proven, not asserted)
+3. Open a pull request. When the job finishes, the App posts the Runtime Review
+   comment with the public Execution Profile link, bound to that head SHA.
 
-- **Scoped bypass.** Garnet only lifts the deny on dependency-shaped files. Auth,
-  billing, and migration files can never ride along — see the scoped demo PR
-  ([#3](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/3)), where
-  a clean record lifts the deps deny but the `auth` deny still stands.
-- **Head-pinned.** Assurance is bound to the exact commit SHA. A record on an
-  older commit confers nothing.
-- **Fail-safe.** Missing / stale / still-recording evidence → **WAIT**, never a
-  silent approve. The gate never races the sensor.
-- **Legend-safe.** The record's illustrative legend is never mistaken for
-  recorded data (a real bug we found and fixed; now covered by the proof suite).
+Quickstart and reference: <https://docs.garnet.ai/quickstart>. Action source and
+inputs: <https://github.com/garnet-org/action>.
 
----
+## Repository policy example (optional)
 
-## See it live
+Garnet produces the Execution Profile. Deciding what to do with it is repository
+policy. This repository also keeps an older experiment, from July 2026, that
+shows one way to consume a profile: a vendored copy of PostHog's open-source
+"stamphog" merge gate reads the public Runtime Review comment and lets a clean
+dependency install lift its own `deps_toolchain` deny, while off-baseline egress
+keeps the deny and names the destination.
 
-1. **Read the two PRs above.** Each carries the Garnet Runtime Review comment
-   (the recorded truth) and the gate's verdict comment.
-2. **Click the run links** to see the gate's reasoning in the CI log.
-3. **Reproduce it yourself** in a few minutes — [`VERIFY.md`](VERIFY.md).
-4. **Watch it stay true** — the [Living Proof](https://github.com/garnet-labs/garnet-runtime-review-reference/actions/workflows/proof-check.yml)
-   workflow re-asserts the whole A/B on every push and weekly. Green badge = the
-   proof still holds.
+That experiment consumes evidence; it does not produce it, and its behaviour is
+this repository's policy, not Garnet's.
 
----
+- Demonstration pull requests, all from 2026-07-27 to 2026-07-28, recorded by an
+  earlier renderer contract:
+  [#1](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/1),
+  [#2](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/2),
+  [#3](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/3),
+  [#6](https://github.com/garnet-labs/garnet-runtime-review-reference/pull/6).
+- Write-up: [`PROOF.md`](PROOF.md). Integration point:
+  [`tools/pr-approval-agent/garnet_runtime.py`](tools/pr-approval-agent/garnet_runtime.py).
+  Attribution: [`NOTICE.md`](NOTICE.md).
+- Reviewer-grounding contract for the AI reviewers this repository runs:
+  [`REVIEW.md`](REVIEW.md), with the shared delivery contract in
+  [`docs/SPINE.md`](docs/SPINE.md).
 
-## Deeper reading
+## Versions used by the exhibit run
 
-- [`PROOF.md`](PROOF.md) — the full A/B with every live run and PR linked.
-- [`docs/integration-guide.md`](docs/integration-guide.md) — how to wire your own
-  review harness to Garnet (the general model behind this demo).
-- [`REVIEW.md`](REVIEW.md) — the reviewer-grounding contract every AI reviewer in
-  this repo follows.
-- [`NOTICE.md`](NOTICE.md) — attribution for the vendored PostHog engine.
+- **Action ref in the workflow:** `garnet-org/action@v2`
+  (probe: `git show 23bbd88:.github/workflows/garnet-record.yml`)
+- **What `v2` resolves to today:** `3d47f4a9004f7356c980a0e8d420ef5984750e3c`,
+  the same commit as tag `v2.2.0`
+  (probe: `git ls-remote --tags https://github.com/garnet-org/action`)
+- **Jibril version:** `v2.16.0`
+  (probe: the job log of run 32909555254, line `Jibril Version: v2.16.0`)
+- **Runtime Review contract:** `6.10.0`
+  (probe: the `garnet:summary` marker in the App comment)
+- **Recorded:** 2026-08-25 23:11 UTC
+  (probe: the `garnet:summary` marker)
 
----
+`v2` is a floating major tag and can move. Pin to a tag SHA, as the blocks above
+do, if you want a fixed ref.
 
-*This is a demonstration by [Garnet](https://garnet.ai). The review engine is
-PostHog's open-source work, used verbatim and with gratitude to show Garnet
-integrating with a real gate rather than a toy.*
+The [proof check](.github/workflows/proof-check.yml) workflow re-runs
+[`scripts/check-proof.mjs`](scripts/check-proof.mjs) on every push to `main` and
+weekly. It asserts, logged out, that the exhibit pull request, the Execution
+Profile page and the JSON endpoint all answer 200, that the head SHA in this
+README is the pull request's current head, and that this file stays inside the
+vocabulary. It only reads.
