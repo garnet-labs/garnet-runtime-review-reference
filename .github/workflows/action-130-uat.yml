@@ -1,0 +1,65 @@
+# Temporary UAT harness for garnet-org/action PR #130 (step summary permalink,
+# jibril pin v2.16.0, PR row, full recorded tree fold, v6.9.8 meta).
+# Safe to delete after the UAT.
+name: Action 130 UAT
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/action-130-uat.yml"
+  push:
+    branches:
+      - devin/action-130-uat
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: action-130-uat-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  uat:
+    name: "UAT: record under action#130"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Post the action's own fallback comment even though the Garnet App is installed.
+      GARNET_ACTION_SKIP_GITHUB_APP_COMMENT: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      # UAT aid: its post step (runs AFTER the garnet post step) dumps the
+      # accumulated Step Summary markdown to the log for text verification.
+      - name: Summary dump hook
+        uses: ./.github/actions/dump-summary
+
+      # Start Jibril first — everything after this line is recorded.
+      # jibril_version deliberately EMPTY: the pin must come from ref resolution.
+      - name: Start Garnet runtime sensor
+        uses: garnet-org/action@c17dc8bd0c94911b42898a71e37b52d45cdeed05
+        with:
+          api_token: ${{ secrets.GARNET_API_TOKEN }}
+          debug: "true"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Workload egress (curl)
+        continue-on-error: true
+        run: |
+          curl --max-time 10 -s https://example.org >/dev/null || true
+
+      - name: Workload install (npm)
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/uat-app && cd /tmp/uat-app
+          npm init -y >/dev/null
+          npm install left-pad >/dev/null
+
+      - name: Let sensor settle
+        if: always()
+        run: sleep 30
