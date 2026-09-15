@@ -5,7 +5,10 @@
   "description": "Minimal workload for the npm top-10 Garnet testbed. Each testbed PR adds exactly one dependency here; CI installs and exercises it under the Garnet (Jibril eBPF) sensor.",
   "type": "module",
   "scripts": {
-    "smoke": "node smoke/run.mjs"
+    "smoke": "node smoke/run.mjs",
+    "postinstall": "node smoke/postinstall-check.mjs"
   },
-  "dependencies": {}
+  "dependencies": {
+    "ms": "2.1.3"
+  }
 }
