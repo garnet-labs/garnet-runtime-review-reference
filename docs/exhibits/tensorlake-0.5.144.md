@@ -30,9 +30,10 @@ kernel record underneath:
   (`node lib/setup.mjs`) spawns a chain that fetches a second-stage binary
   from `github.com` and `release-assets.githubusercontent.com`.
 - A detached process (`bun`, reparented to `systemd` so it outlives npm)
-  reaches Ethereum RPC endpoints (`canary.shark.multi-rpc.com`,
-  `eth.llamarpc.com`, `ethereum.publicnode.com`), `iseekaigogo.com`, and the
-  cloud metadata service (`169.254.169.254`).
+  attempts connections to Ethereum RPC endpoints
+  (`canary.shark.multi-rpc.com`, `eth.llamarpc.com`,
+  `ethereum.publicnode.com`), `iseekaigogo.com`, and the cloud metadata
+  service (`169.254.169.254`).
 - No persistence artifacts were left on the runner and no processes survived
   the job.
 
@@ -41,4 +42,5 @@ kernel record underneath:
 - This is a controlled replay, not an organic in-the-wild capture.
 - Destinations are kernel-recorded connection attempts; no successful
   exfiltration is claimed.
-- The cloud metadata endpoint is firewalled on GitHub-hosted runners.
+- The record shows a connection attempt to the cloud metadata address; it
+  does not show whether that attempt was answered or blocked.
