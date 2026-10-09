@@ -10,5 +10,7 @@
   "engines": {
     "node": ">=20"
   },
-  "dependencies": {}
+  "dependencies": {
+    "ms": "2.1.3"
+  }
 }
