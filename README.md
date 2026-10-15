@@ -137,19 +137,9 @@ part of the comment, not recorded data.
    step after it is recorded. Stable release:
 
    ```yaml
-   - uses: garnet-org/action@3d47f4a9004f7356c980a0e8d420ef5984750e3c # v2.2.0
+   - uses: garnet-org/action@245ad6be82de3200c205109c8ca7ac816dc692ea # v2.3.0
      with:
        api_token: ${{ secrets.GARNET_API_TOKEN }}
-   ```
-
-   Release candidate, if you want the newer sensor pin (`v2.3.0` is not tagged
-   yet; `v2.3.0-rc.1` is a prerelease and `v2.17.0-rc.9` is a Jibril prerelease):
-
-   ```yaml
-   - uses: garnet-org/action@c747ff1f597c84579e10173301a31c30bb815181 # v2.3.0-rc.1
-     with:
-       api_token: ${{ secrets.GARNET_API_TOKEN }}
-       jibril_version: "v2.17.0-rc.9"
    ```
 
 3. Open a pull request. When the job finishes, the App posts the Runtime Review
@@ -187,9 +177,11 @@ this repository's policy, not Garnet's.
 
 - **Action ref in the workflow:** `garnet-org/action@v2`
   (probe: `git show 23bbd88:.github/workflows/garnet-record.yml`)
-- **What `v2` resolves to today:** `3d47f4a9004f7356c980a0e8d420ef5984750e3c`,
-  the same commit as tag `v2.2.0`
-  (probe: `git ls-remote --tags https://github.com/garnet-org/action`)
+- **What `v2` resolves to today:** `245ad6be82de3200c205109c8ca7ac816dc692ea`,
+  the same commit as tag `v2.3.0` (probe:
+  `git ls-remote --tags https://github.com/garnet-org/action`, 2026-09-24). The
+  exhibit run itself was recorded when `v2` resolved to
+  `3d47f4a9004f7356c980a0e8d420ef5984750e3c` (`v2.2.0`).
 - **Jibril version:** `v2.16.0`
   (probe: the job log of run 32909555254, line `Jibril Version: v2.16.0`)
 - **Runtime Review contract:** `6.10.0`
