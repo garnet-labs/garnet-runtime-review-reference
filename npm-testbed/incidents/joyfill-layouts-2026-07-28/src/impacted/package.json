@@ -1,0 +1,7 @@
+{
+  "name": "joyfill-layouts-replay",
+  "version": "0.1.2-2773.beta.0",
+  "description": "Replay fixture for the @joyfill/layouts incident (2026-07-28) — impacted version. Benign reproduction of the implant's runtime shape; see the incident README.",
+  "main": "index.js",
+  "license": "MIT"
+}
