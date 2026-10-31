@@ -1,0 +1,39 @@
+# Verification only — delete after the check.
+# Question: does garnet-org/action@v2 authenticate with the control plane
+# through GitHub OIDC when no api_token is supplied, and does the Garnet
+# Runtime Review still land on the PR?
+# Pass = the "Garnet Runtime Review" job succeeds, its log says
+# "Using OIDC workflow token for control-plane requests", and the
+# garnet-runtime-review[bot] comment appears on this PR with a public profile.
+name: Garnet OIDC check (no api_token)
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/garnet-oidc-check.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  record-oidc:
+    name: "Record under Garnet via OIDC (no api_token)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # No api_token on purpose. The action must request a GitHub OIDC
+      # ID token and exchange it at /api/v1/github/oidc/exchange.
+      - name: Start Garnet runtime sensor (OIDC, no api_token)
+        uses: garnet-org/action@v2
+        with:
+          jibril_version: "v2.17.0"
+
+      - name: Workload (one outbound request)
+        run: curl -sS -o /dev/null -w "example.org -> HTTP %{http_code}\n" https://example.org/
+
+      - name: Let sensor settle
+        if: always()
+        run: sleep 20
