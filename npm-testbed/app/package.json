@@ -7,5 +7,7 @@
   "scripts": {
     "smoke": "node smoke/run.mjs"
   },
-  "dependencies": {}
+  "dependencies": {
+    "semver": "7.6.3"
+  }
 }
