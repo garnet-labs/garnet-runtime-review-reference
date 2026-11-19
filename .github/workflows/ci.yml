@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main] # your default branch
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Garnet Runtime Review
+        uses: garnet-org/action@3d47f4a9004f7356c980a0e8d420ef5984750e3c # v2.2.0
+        with:
+          api_token: ${{ secrets.GARNET_API_TOKEN }}
+          jibril_version: v2.17.0
+
+      - uses: actions/checkout@v4
+
+      # your existing build/test steps continue here
