@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   pull-requests: write
 
 concurrency:
@@ -47,10 +48,7 @@ jobs:
 
       # Start Jibril first — everything after this line is recorded.
       - name: Start Garnet runtime sensor
-        uses: garnet-org/action@v2
-        with:
-          api_token: ${{ secrets.GARNET_API_TOKEN }}
-          jibril_version: "v2.16.0"
+        uses: garnet-org/action@673a06d87748bec49e4d8df22d371b2a3420aba4 # v2.5.2
 
       - uses: actions/setup-node@v4
         with:
