@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "garnet": {
+      "url": "https://api.garnet.ai/api/v2/mcp"
+    }
+  }
+}
