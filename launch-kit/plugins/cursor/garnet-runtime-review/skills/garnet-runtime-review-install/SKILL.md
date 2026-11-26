@@ -21,5 +21,5 @@ Install the [Garnet GitHub App](https://github.com/apps/garnet-runtime-review) o
      - uses: garnet-org/action@24833a47c19aad605bb10bcd9b8cad8f318ca187 # v2.6.0
    ```
 
-4. Create `.github/workflows/ci.yml` only if the repository has no PR CI. Use `pull_request` and `push` to the default branch, an `ubuntu-latest` job, and the project's real build or test commands after the steps above. Do not add a parallel recording-only workflow to a repository that already has PR CI.
+4. If the repository has no PR CI, create a workflow at an unused path under `.github/workflows/` (for example `ci.yml` if it does not exist). Do not overwrite or repurpose an existing workflow. Use `pull_request` and `push` to the default branch, an `ubuntu-latest` job, and the project's real build or test commands after the steps above. Do not add a parallel recording-only workflow to a repository that already has PR CI.
 5. Validate the workflow changes and summarize which jobs will be recorded and why any were left out. On the first instrumented PR, check that the current-head Runtime Review comment covers the jobs that ran. Use `garnet-runtime-review-before-ready` to read the record before asking for review. Runtime evidence describes what the recorded jobs did; it does not approve the PR.
