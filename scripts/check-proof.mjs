@@ -158,8 +158,8 @@ if (runId && headSha) {
     const parents = (commit.parents ?? []).map((p) => p.sha);
     const current = commitSha === mergeCommitSha ? "current" : "superseded";
     check(
-      parents.includes(headSha),
-      `JSON commit_sha ${commitSha} is a merge of the head SHA ${headSha}: PR #${prNumber}'s merge ref as the run checked it out (${current}; merge_commit_sha is now ${mergeCommitSha}). Parents: ${parents.join(", ") || "none"}`,
+      parents.length === 2 && parents[1] === headSha,
+      `JSON commit_sha ${commitSha} is a two-parent merge whose second parent is the head SHA ${headSha}: PR #${prNumber}'s merge ref as the run checked it out (${current}; merge_commit_sha is now ${mergeCommitSha}). Parents: ${parents.join(", ") || "none"}`,
     );
   } else {
     check(false, "JSON profile carries no commit_sha");
