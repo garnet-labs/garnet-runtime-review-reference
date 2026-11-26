@@ -1,0 +1,7 @@
+{
+  "dependency": "chart-helpers",
+  "packageDir": "npm-testbed/app",
+  "from": "none",
+  "to": "file:../vendor/chart-helpers-1.0.0.tgz",
+  "label": "real"
+}
