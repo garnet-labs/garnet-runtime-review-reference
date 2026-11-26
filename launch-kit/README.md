@@ -9,6 +9,8 @@ Record what your CI jobs do. The Garnet GitHub App posts a Runtime Review commen
 
 [Try it in a new repository](sample/README.md) with a working workflow and a first-PR walkthrough.
 
+[15-minute validation reference](VALIDATION.md) for co-founders and beta testers: setup, author self-check, and AI review.
+
 ## Give your reviewers the record
 
 - [`REVIEW.md`](snippets/REVIEW.md): tell reviewers how to read and cite the current-head evidence.
