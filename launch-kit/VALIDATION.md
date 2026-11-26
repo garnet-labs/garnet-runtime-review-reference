@@ -1,8 +1,10 @@
 # Co-founder & Beta Validation Reference
 
-Use a public GitHub repository with a Linux x86_64 pull request job. The [sample](sample/README.md) provides one. Budget 15 minutes of hands-on time; GitHub Actions queue and run time are separate. Record the PR URL, current head SHA, and comment link with each result.
+Use a public GitHub repository with a Linux x86_64 pull request job. Budget 15 minutes of hands-on time; GitHub Actions queue and run time are separate. Record the PR URL, current head SHA, and comment link with each result.
 
 ## 1. Zero-signup onboarding · 7 minutes
+
+Start with your own repository where the jobs you want to record do not already use Garnet. If you use a copy of the [sample](sample/README.md), remove the Garnet step and the job's `permissions` block from `.github/workflows/ci.yml` before starting. Keep checkout and the rest of the workflow.
 
 Install the [Garnet GitHub App](https://github.com/apps/garnet-runtime-review) on the repository. No Garnet account or API token is needed on the public-repository GitHub OIDC path.
 
@@ -28,5 +30,5 @@ Give a reviewer the [reviewer instructions](snippets/REVIEW.md) and the PR URL. 
 
 - Recording requires Linux x86_64 GitHub Actions runners. Native App Checks are off in production; use the Runtime Review comment.
 - The workflow patcher at [app.garnet.ai/onboarding](https://app.garnet.ai/onboarding) awaits the `garnet-ui` production promotion from `dev` to `main`. Use the manual snippet in the meantime.
-- **Claude Code 2.1.332:** Loaded the [kit plugin](plugins/README.md) with `--plugin-dir` and Vercel AI Gateway. All three skills were listed and the bundled Garnet MCP connected. The install skill's local dry run found the sample already pinned and correctly placed with both OIDC grants. It proposed no duplicate step and made no changes.
+- **Claude Code 2.1.332:** Loaded the [kit plugin](plugins/README.md) with `--plugin-dir` and Vercel AI Gateway. All three skills were listed and the bundled Garnet MCP connected. The install skill's local dry run checked idempotency only: it found the existing step and OIDC grants and made no changes. It did not test the Journey 1 prompt on an uninstrumented workflow.
 - **Cursor:** Checked the plugin manifest, bundled MCP configuration, and three `SKILL.md` files against Cursor's documented layout. No live invocation was run; the CLI was not available and no Cursor login or API key was provisioned.
