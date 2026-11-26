@@ -5,3 +5,6 @@ permissions:
 steps:
   - uses: actions/checkout@v6
   - uses: garnet-org/action@24833a47c19aad605bb10bcd9b8cad8f318ca187 # v2.6.0
+    # For matrix jobs only, uncomment to record each leg separately:
+    # with:
+    #   job_index: ${{ strategy.job-index }}
