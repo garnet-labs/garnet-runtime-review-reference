@@ -9,7 +9,7 @@ Install the [Garnet GitHub App](https://github.com/apps/garnet-runtime-review) o
 
 1. Read `.github/workflows/` and find the workflows and jobs that actually build, test, or otherwise run the pull request workload. Follow calls to repository-owned reusable workflows and instrument the jobs that run the steps. Do not change events or conditions to run jobs that did not already run for PRs.
 2. For each eligible Linux x86_64 job, add one Garnet step immediately after `actions/checkout` and before installs, builds, and tests. If the job already uses Garnet, check its placement, permissions, and pin; do not add a second step or skip other jobs. Flag jobs without checkout, unsupported runners, or reusable workflows you cannot edit rather than guessing. In a matrix, use `job_index: ${{ strategy.job-index }}` so each recorded leg stays distinct.
-3. Give each instrumented job `contents: read` and `id-token: write` for GitHub OIDC. Preserve existing effective permissions; adding a job-level block replaces workflow-level grants. Do not add a token or sensor override. Use this pin:
+3. Give each instrumented job `contents: read` and `id-token: write` for GitHub OIDC. Preserve existing effective permissions; adding a job-level block replaces workflow-level grants. For a reusable workflow, trace every caller, including nested calls and non-PR callers: a callee cannot add permissions the caller did not grant. Ensure each affected calling job grants both permissions at every hop, preserving its other grants. If you cannot verify or update a caller's grants, leave the shared workflow unchanged and explain what is needed. Do not add a token or sensor override. Use this pin:
 
    ```yaml
    permissions:
