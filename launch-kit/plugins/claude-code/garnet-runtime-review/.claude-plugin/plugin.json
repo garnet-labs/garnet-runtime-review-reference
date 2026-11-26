@@ -1,0 +1,7 @@
+{
+  "name": "garnet-runtime-review",
+  "version": "1.0.0",
+  "description": "Install Garnet recording in CI and review what recorded jobs did on a pull request.",
+  "author": { "name": "Garnet" },
+  "homepage": "https://docs.garnet.ai/consume"
+}

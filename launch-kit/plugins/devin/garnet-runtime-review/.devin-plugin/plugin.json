@@ -1,0 +1,20 @@
+{
+  "name": "garnet-runtime-review",
+  "displayName": "Garnet Runtime Review",
+  "description": "Runtime review for pull requests: what changed at runtime when CI ran it (outbound connections, the execution chain behind each, and the GitHub step), with runner background kept apart from workload",
+  "shortDescription": "Runtime review for pull requests",
+  "homepage": "https://www.garnet.ai",
+  "repository": "https://docs.garnet.ai/consume",
+  "logo": "logo.svg",
+  "keywords": [
+    "CI",
+    "Runtime Review",
+    "MCP",
+    "Pull requests"
+  ],
+  "mcpServers": {
+    "garnet": {
+      "url": "https://api.garnet.ai/api/v2/mcp"
+    }
+  }
+}
