@@ -24,7 +24,7 @@ You opened or pushed a pull request, the repository runs `garnet-org/action` in 
    - `first` (heading `Runtime behavior recorded`): list every workload destination per job from `profiles`; if a job's profile is unavailable, say which.
    - `unchanged` (heading `Nothing new recorded`): name the compared run from the comment's first line.
    - `incomplete`, `not-recorded`, pending or `capture incomplete`: write the comment's own line verbatim.
-   - Partial sources: A trimmed job tree omits removed destinations that no profile can show; a `profiles` page you could not read, or pagination you did not finish, leaves the list partial. In every such case list what the comment and the profiles do show, then write the gap verbatim ("trimmed record: removals not fully listed", "profiles not fully read: <reason>", "profile not readable; destinations taken from the comment"). Never claim the list is complete.
+   - Partial sources: A trimmed job tree omits removed destinations that no profile can show. Unread `profiles` pages are a gap only when a linked head profile was not found. Once you have found and head-checked every linked head profile, do not read or report the remaining pages. For an actual gap, list what the comment and the profiles do show, then state the limit ("trimmed record: removals not fully listed", "profiles not fully read: <reason>", "profile not readable; destinations taken from the comment"). Never claim a partial list is complete.
 5. Add this section to the PR body, outside any `<!-- garnet:evidence:begin -->` … `<!-- garnet:evidence:end -->` block (that block belongs to the repository's mirror; never edit it):
 
    ```markdown
