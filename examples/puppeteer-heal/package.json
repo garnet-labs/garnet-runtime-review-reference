@@ -1,0 +1,6 @@
+{
+  "name": "puppeteer-heal",
+  "private": true,
+  "description": "Self-contained install whose Puppeteer browser download was recorded and then the dependency was removed.",
+  "dependencies": {}
+}
