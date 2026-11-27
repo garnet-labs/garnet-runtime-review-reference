@@ -16,3 +16,12 @@ test("all three Runtime Review plugins ship byte-identical copies of every canon
     }
   }
 });
+
+test("the Cursor plugin manifest exposes the install skill", async () => {
+  const root = new URL("../plugins/cursor/garnet-runtime-review/", import.meta.url);
+  const manifest = JSON.parse(await readFile(new URL(".cursor-plugin/plugin.json", root), "utf8"));
+  const directory = new URL(manifest.skills, root);
+  const install = await readFile(new URL("garnet-runtime-review-install/SKILL.md", directory));
+  const canonical = await readFile(new URL("../skills/garnet-runtime-review-install/SKILL.md", import.meta.url));
+  assert.deepEqual(install, canonical);
+});
