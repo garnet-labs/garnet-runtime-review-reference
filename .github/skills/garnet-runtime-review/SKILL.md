@@ -1,6 +1,6 @@
 ---
 name: garnet-runtime-review
-description: Ground code review in the Garnet Runtime Review record mirrored into the PR description. Use on every pull request in this repository — especially dependency changes (package.json, lockfiles, npm-testbed PRs) — to cross-check the diff against what the PR's CI actually executed (execution chains and outbound network destinations recorded at the kernel level), apply the fail-closed verdict table, and cite runtime evidence with the exact required prefix.
+description: Report the Garnet Runtime Review record mirrored into the PR description. Use on every pull request in this repository — especially dependency changes (package.json, lockfiles, npm-testbed PRs) — to cross-check the diff against recorded execution chains and outbound destinations and cite runtime evidence with the exact required prefix.
 ---
 
 # Garnet Runtime Review — reviewer grounding skill
@@ -17,7 +17,7 @@ request here, you must ground your review in that record. The full contract is
    it, `<!-- garnet:commit <sha40> -->` names the head the record describes and
    `<!-- garnet:summary {...} -->` is the machine register.
 
-2. **Determine the verdict — fail closed.**
+2. **Classify the recorded evidence — fail closed.**
    - No section, no head-bound record, unparseable register, count drift, or
      declared partial capture → `undeterminable`.
    - `garnet:commit` ≠ current PR head → `undeterminable` (never ground in a
@@ -29,27 +29,22 @@ request here, you must ground your review in that record. The full contract is
 3. **Speak exactly one utterance**, prefixed exactly
    `Runtime evidence (Garnet, head <sha7>): `.
    - `recorded` → one line: `Execution Profiles recorded for <N> job(s) —
-     snapshot, no baseline.` Then review normally.
+     snapshot, no baseline.`
    - `unchanged` → one line: `runtime behavior unchanged vs the compared
      record (changed = 0 across recorded jobs).` No further runtime
      commentary.
    - `changed` → quote the record's delta one-liners verbatim (never
-     summarize), link the Execution Profile URL from the record, and ask
-     whether the delta is expected given the diff. On dependency changes,
-     flag any recorded destination or execution chain the dependency change
+     summarize) and link the Execution Profile URL from the record. On
+     dependency changes, identify any recorded destination or execution chain the dependency change
      does not explain (install-script activity, unexpected hosts, unexpected
      interpreters).
    - `undeterminable` → state that runtime evidence is unavailable or stale
-     for this head and why; proceed evidence-blind and say so. **A missing
+     for this head and why. **A missing
      record is not a clean run.**
 
 ## Hard rules
 
-- The record states facts only. Never repeat or invent verdicts, scores,
-  severities, or safety judgments from Garnet; your judgment comes from the
-  diff, grounded by the record.
-- Evidence never approves. Do not approve, or soften scrutiny of, a change
-  merely because a record exists or is `unchanged`.
+- Report recorded observations, comparison scope, and capture limits only.
 - Vocabulary: an "execution chain" is one root-to-action path; a destination
   is the leaf of an outbound action. Never say "process chain" or "process
   lineage". The headline is always `Execution Profiles recorded for <N>
