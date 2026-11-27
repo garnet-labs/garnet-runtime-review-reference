@@ -1,8 +1,6 @@
 {
   "name": "puppeteer-heal",
   "private": true,
-  "description": "Self-contained install that records a Puppeteer browser download, then removes it.",
-  "dependencies": {
-    "puppeteer": "25.19.0"
-  }
+  "description": "Self-contained install whose Puppeteer browser download was recorded and then the dependency was removed.",
+  "dependencies": {}
 }
