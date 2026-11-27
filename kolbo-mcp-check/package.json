@@ -1,0 +1,14 @@
+{
+  "name": "kolbo-mcp-check",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Integration smoke check for the @kolbo/mcp server",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "@kolbo/mcp": "1.57.0"
+  }
+}
